@@ -1,0 +1,56 @@
+name: timepost-files-standalone
+x-files-environment: &files-environment
+  DATABASE_URL: postgresql://files:${FILES_DB_PASSWORD:?Запустите make setup}@postgres:5432/files
+  FILES_AUTH_MODE: api-key
+  FILES_API_KEY: ${FILES_API_KEY:?Запустите make setup}
+  FILES_READONLY_API_KEY: ${FILES_READONLY_API_KEY:?Запустите make setup}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-simulator}
+  STORAGE_DIRECTORY: /data/objects
+  YANDEX_DISK_OAUTH_TOKEN: ${YANDEX_DISK_OAUTH_TOKEN:-}
+  FILES_GENERIC_ENABLED: "true"
+  FILES_DELETE_ENABLED: "true"
+  FILES_CONTENT_PREFIX: ""
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: files
+      POSTGRES_USER: files
+      POSTGRES_PASSWORD: ${FILES_DB_PASSWORD:?Запустите make setup}
+    volumes: [metadata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U files -d files]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  api:
+    build: .
+    environment:
+      <<: *files-environment
+      PORT: "3050"
+      FILES_UI_ENABLED: "true"
+    ports: ["127.0.0.1:${FILES_PORT:-3060}:3050"]
+    volumes: [objects:/data/objects]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3050/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  worker:
+    build: .
+    environment:
+      <<: *files-environment
+      FILES_ROLE: worker
+    volumes: [objects:/data/objects]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "const fs=require('node:fs');try{process.exit(Date.now()-fs.statSync('/tmp/files-worker-ready').mtimeMs<180000?0:1)}catch{process.exit(1)}"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+volumes:
+  metadata:
+  objects:

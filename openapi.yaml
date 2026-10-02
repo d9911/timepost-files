@@ -1,0 +1,890 @@
+components:
+  schemas:
+    FileError:
+      properties:
+        error:
+          properties:
+            code:
+              enum:
+                - INVALID_PROJECT
+                - INVALID_FILE_ID
+                - INVALID_FILE_NAME
+                - INVALID_PAGINATION
+                - DELETE_DISABLED
+                - STORAGE_PROVIDER_MISMATCH
+                - UNAUTHORIZED
+                - PROJECT_FORBIDDEN
+                - AUTH_DEPENDENCY_UNAVAILABLE
+                - FILE_TOO_LARGE
+                - INVALID_IMAGE
+                - FILE_NOT_FOUND
+                - FILE_FORBIDDEN
+                - FILE_DELETING
+                - UPLOAD_BUSY
+                - NOT_FOUND
+                - FILES_UNAVAILABLE
+                - STORAGE_NOT_CONFIGURED
+                - STORAGE_OPERATION_PENDING
+                - STORAGE_UNAVAILABLE
+                - STORAGE_INVALID_RESPONSE
+              type: string
+            message:
+              type: string
+          required:
+            - code
+            - message
+          type: object
+        success:
+          enum:
+            - false
+          type: boolean
+      required:
+        - success
+        - error
+      type: object
+    StoredFile:
+      additionalProperties: false
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        fileName:
+          maxLength: 255
+          type: string
+        height:
+          maximum: 4096
+          minimum: 1
+          nullable: true
+          type: integer
+        id:
+          format: uuid
+          type: string
+        mediaFileId:
+          format: uuid
+          type: string
+        mimeType:
+          enum:
+            - image/jpeg
+            - image/png
+            - image/webp
+            - application/octet-stream
+          type: string
+        projectId:
+          pattern: ^\d+$
+          type: string
+        sha256:
+          pattern: ^[a-f0-9]{64}$
+          type: string
+        sizeBytes:
+          maximum: 10485760
+          minimum: 1
+          type: integer
+        storageProvider:
+          enum:
+            - yandex
+            - simulator
+          type: string
+        url:
+          description: Приватный путь через same-origin proxy; не внешняя публичная ссылка.
+          type: string
+        width:
+          maximum: 4096
+          minimum: 1
+          nullable: true
+          type: integer
+      required:
+        - id
+        - mediaFileId
+        - projectId
+        - url
+        - mimeType
+        - width
+        - height
+        - sizeBytes
+      type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
+info:
+  description: >-
+    Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь
+    удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в режиме
+    Timepost запрещено; автономный режим допускает удаление владельцем. Публичных ссылок нет. Swagger доступен только
+    как локальный артефакт.
+  title: Timepost Files API
+  version: 0.1.0
+openapi: 3.0.3
+paths:
+  /api/v1/files:
+    get:
+      description: >-
+        Только ready-файлы текущего провайдера и доступного проекта. Автономный основной ключ имеет доступ ко всем
+        проектам, readonly-ключ только читает; это не модель отдельных пользователей.
+      operationId: listFiles
+      parameters:
+        - in: query
+          name: projectId
+          required: true
+          schema:
+            pattern: ^\d+$
+            type: string
+        - in: query
+          name: limit
+          schema:
+            default: 20
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      items:
+                        items:
+                          $ref: '#/components/schemas/StoredFile'
+                        type: array
+                      nextCursor:
+                        format: uuid
+                        nullable: true
+                        type: string
+                    required:
+                      - items
+                      - nextCursor
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Страница списка; cursor — последний ID, не номер страницы.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Список файлов проекта с курсором
+    post:
+      description: >-
+        Сырой бинарный файл; multipart и base64 не принимаются. В режиме genericFiles=true также принимаются
+        произвольные файлы как application/octet-stream; они скачиваются как attachment. Только активный проект и роли
+        OWNER/ADMIN/MEMBER. Максимум 10 МиБ, 4096×4096, один кадр. MIME и размеры определяются декодированием.
+        Неуспешная загрузка не выдаётся как готовый файл.
+      operationId: uploadPhoto
+      parameters:
+        - description: Имя для скачивания; управляющие символы запрещены. Не используется как путь хранения.
+          in: query
+          name: fileName
+          required: false
+          schema:
+            maxLength: 255
+            type: string
+        - in: query
+          name: projectId
+          required: true
+          schema:
+            pattern: ^\d+$
+            type: string
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              format: binary
+              type: string
+          image/jpeg:
+            schema:
+              format: binary
+              type: string
+          image/png:
+            schema:
+              format: binary
+              type: string
+          image/webp:
+            schema:
+              format: binary
+              type: string
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StoredFile'
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Подтверждённый файл
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Загрузить файл проекта
+  /api/v1/files/{id}:
+    delete:
+      description: >-
+        Разрешено только автономному основному ключу при FILES_DELETE_ENABLED=true. Timepost запрещает удаление до
+        реализации учёта ссылок из постов. 202 означает очередь; файл перестаёт читаться сразу, worker удаляет байты и
+        фиксирует deleted. Повтор допускается в deleting; после завершения 404. Worker повторяет сбои до 10 попыток;
+        failed требует вмешательства оператора.
+      operationId: deleteFile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - deleting
+                        type: string
+                    required:
+                      - id
+                      - status
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Удаление принято, байты ещё могут находиться у провайдера.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Поставить окончательное удаление файла в очередь
+    get:
+      operationId: getFileMetadata
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StoredFile'
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Подтверждённый файл
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Получить метаданные доступной фотографии
+  /api/v1/files/{id}/content:
+    get:
+      description: >-
+        Требуется Bearer сессия и участие в проекте. Ответ не кэшируется. В браузере нужно авторизованно получить Blob;
+        обычный img без сессии не работает.
+      operationId: getFileContent
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+            image/jpeg:
+              schema:
+                format: binary
+                type: string
+            image/png:
+              schema:
+                format: binary
+                type: string
+            image/webp:
+              schema:
+                format: binary
+                type: string
+          description: Файл
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Прочитать приватную фотографию
+  /api/v1/files/{id}/deletion:
+    get:
+      description: >-
+        Проверяется доступ к проекту. Доступно после окончания удаления; 404, если задания нет. Повторный DELETE
+        владельцем перезапускает только failed-задание; running не сбрасывается.
+      operationId: getFileDeletion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      attempts:
+                        minimum: 0
+                        type: integer
+                      fileId:
+                        format: uuid
+                        type: string
+                      maxAttempts:
+                        enum:
+                          - 10
+                        type: integer
+                      status:
+                        enum:
+                          - pending
+                          - running
+                          - done
+                          - failed
+                        type: string
+                    required:
+                      - fileId
+                      - status
+                      - attempts
+                      - maxAttempts
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Состояние и число попыток, без ответов и секретов провайдера.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Прочитать состояние очереди удаления
+  /api/v1/storage:
+    get:
+      description: >-
+        Нужен пользовательский bearer или API key. OAuth, ключи, DB URL и системные JWT никогда не возвращаются.
+        Настройка провайдера выполняется серверным окружением, не этим API.
+      operationId: getStorageConfiguration
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      authMode:
+                        enum:
+                          - timepost
+                          - api-key
+                        type: string
+                      deleteEnabled:
+                        type: boolean
+                      genericFiles:
+                        type: boolean
+                      maxBytes:
+                        enum:
+                          - 10485760
+                        type: integer
+                      provider:
+                        enum:
+                          - yandex
+                          - simulator
+                        type: string
+                    required:
+                      - provider
+                      - authMode
+                      - maxBytes
+                      - genericFiles
+                      - deleteEnabled
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Текущий режим и возможности.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      summary: Прочитать безопасную конфигурацию хранилища
+  /health/ready:
+    get:
+      description: Не проверяет токен запросом к Яндексу.
+      operationId: filesReady
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    enum:
+                      - ok
+                    type: string
+                required:
+                  - status
+                type: object
+          description: БД доступна, OAuth настроен
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+      security: []
+      summary: Проверить БД и наличие настройки OAuth
+security:
+  - bearerAuth: []
+servers:
+  - url: http://localhost:3050

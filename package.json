@@ -1,0 +1,28 @@
+{
+  "name": "timepost-files",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "openapi:generate": "node scripts/openapi.mjs",
+    "openapi:check": "node scripts/openapi.mjs --check",
+    "test": "node --test test/*.test.mjs",
+    "lint": "eslint src test scripts public",
+    "format:check": "prettier --check src test scripts public package.json",
+    "format": "prettier --write src test scripts public package.json"
+  },
+  "dependencies": {
+    "pg": "8.16.3",
+    "sharp": "0.35.4",
+    "jsonwebtoken": "9.0.2"
+  },
+  "devDependencies": {
+    "eslint": "9.17.0",
+    "@eslint/js": "9.17.0",
+    "prettier": "3.4.2"
+  }
+}
