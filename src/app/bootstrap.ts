@@ -1,3 +1,5 @@
+import { withRequestContext } from '../shared/infrastructure/request-context.js';
+import { referenceAuthorization } from '../modules/access/infrastructure/reference-authorization.js';
 import { writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 
@@ -25,6 +27,7 @@ export async function startApplication(): Promise<void> {
   const service = createFileService(repository, storage, authorization.authorizeProject, {
     genericFiles: options.genericFiles,
     deleteEnabled: options.deleteEnabled,
+    requireManagedReferences: options.requireManagedReferences,
   });
   let providerReady = false;
   try {
@@ -53,21 +56,26 @@ export async function startApplication(): Promise<void> {
     await pool.end();
   } else {
     const server = createServer(
-      createHandler(
-        service,
-        authorization.authenticate,
-        async () => {
-          await pool.query('SELECT 1');
-          if (!providerReady) {
-            await storage.ready();
-            providerReady = true;
-          }
-        },
-        {
-          ...options,
-          storageProvider: storage.provider,
-          staticDirectory: new URL('../../public/', import.meta.url),
-        },
+      withRequestContext(
+        createHandler(
+          service,
+          authorization.authenticate,
+          async () => {
+            await pool.query('SELECT 1');
+            if (!providerReady) {
+              await storage.ready();
+              providerReady = true;
+            }
+          },
+          {
+            ...options,
+            referenceRepository: repository,
+            authenticateReferences:
+              options.authMode === 'timepost' ? referenceAuthorization(process.env) : undefined,
+            storageProvider: storage.provider,
+            staticDirectory: new URL('../../public/', import.meta.url),
+          },
+        ),
       ),
     );
     server.requestTimeout = 90000;

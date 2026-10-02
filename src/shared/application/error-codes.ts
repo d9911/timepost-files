@@ -1,6 +1,7 @@
 export type FileErrorCode =
   | 'AUTH_DEPENDENCY_UNAVAILABLE'
   | 'DELETE_DISABLED'
+  | 'FILE_IN_USE'
   | 'FILE_DELETING'
   | 'FILE_FORBIDDEN'
   | 'FILE_NOT_FOUND'

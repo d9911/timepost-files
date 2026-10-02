@@ -12,7 +12,7 @@ import { processDelete } from '../src/modules/files/application/process-delete.j
 import { LocalStorage } from '../src/modules/files/infrastructure/storage/local-storage.js';
 import { createFileService } from '../src/app/create-file-service.js';
 
-test('автономная авторизация сохраняет readonly и не включает удаление в режиме Timepost', async () => {
+test('автономная авторизация сохраняет readonly и требует учёт ссылок для удаления в режиме Timepost', async () => {
   const env = {
     FILES_AUTH_MODE: 'api-key',
     FILES_API_KEY: 'a'.repeat(32),
@@ -31,7 +31,8 @@ test('автономная авторизация сохраняет readonly и
     ACCOUNTS_SERVICE_URL: 'http://accounts',
     PROJECTS_SERVICE_URL: 'http://projects',
   });
-  assert.equal(timepost.options.deleteEnabled, false);
+  assert.equal(timepost.options.deleteEnabled, true);
+  assert.equal(timepost.options.requireManagedReferences, true);
   assert.equal(await config.authorization.authenticate(`Bearer ${env.FILES_API_KEY}`), '1');
   assert.equal(
     await config.authorization.authenticate(`Bearer ${env.FILES_READONLY_API_KEY}`),

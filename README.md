@@ -51,7 +51,7 @@ The contract is available as [openapi.json](openapi.json) and [openapi.yaml](ope
 
 Images and generic files are limited to 10 MiB (`10 × 1024 × 1024` bytes); videos to 100 MiB (`100 × 1024 × 1024` bytes). JPEG/PNG/WebP must decode successfully, contain one frame and fit within 4096 × 4096 pixels. ffprobe validates MP4 H.264/AAC and WebM VP8/VP9 with Opus/Vorbis: one video stream, at most one audio stream, up to 4096 × 4096 pixels and 60 minutes. Metadata includes `durationSeconds`.
 
-HEIC, AVI, MOV, transcoding, poster extraction and full video decoding are not implemented. Authenticated video downloads use a Blob and the existing player; HTTP Range and resumable uploads are not supported. Standalone generic files are stored as `application/octet-stream` and downloaded as attachments. Antivirus scanning is not implemented.
+HEIC, AVI, MOV, transcoding, poster extraction and full video decoding are not implemented. Authenticated video downloads use a Blob and the existing player; The content API supports a single HTTP byte range; resumable uploads are not supported. Standalone generic files are stored as `application/octet-stream` and downloaded as attachments. Antivirus scanning is not implemented.
 
 Downloads verify size and SHA-256. Uploads become `ready` after provider confirmation. The worker queues cleanup for unfinished `pending` uploads older than 24 hours.
 
@@ -61,7 +61,7 @@ File deletion transitions through `deleting` → `deleted`; jobs use `pending` �
 
 Workspace `make start`, `make dev` (an alias for `dev-local`), `make dev-docker` and `make dev-local` include Files. `make files-start` starts Files and its dependencies. The main stack defaults to the simulator with Accounts sessions and Projects access checks. For cloud storage, set `FILES_STORAGE_PROVIDER=yandex` and `YANDEX_DISK_OAUTH_TOKEN` in the root `.env`.
 
-The frontend uses `/api/files-service`. Posts validates `mediaFileId` through Files. Direct file deletion in Timepost is blocked until publication references are accounted for. Standalone service keys do not replace Timepost user permissions.
+The frontend uses `/api/files-service`. Posts validates `mediaFileId` through Files. Timepost deletion protects referenced and legacy unregistered files. Standalone service keys do not replace Timepost user permissions.
 
 `make dev` already prepares seed data. `make seed` adds missing demo records in Accounts/Projects/Posts/Notifications and the Analytics catalog; it does not reset an existing database. Files creates bytes through successful uploads, rather than fabricated seed files. Restarting or seeding does not clear its volumes.
 
@@ -151,3 +151,17 @@ In the full workspace, `make api-sync` updates contracts and consumer snapshots;
 Workspace `make files-integration-smoke` checks Accounts/Projects → Files → Posts Reels draft → reopen/update → private content. It needs seeded credentials/project from local `.env.seed`, removes its own post and leaves a small file because direct Timepost deletion is blocked. It does not publish to social networks.
 
 Optional workspace verification reports: [standalone service](../archive/docs/reports/2026-10-02-files-standalone.md), [media integration](../archive/docs/reports/2026-10-02-files-media-integration.md), [architecture refactor](../archive/docs/reports/2026-10-02-files-clean-architecture.md).
+
+## References, thumbnails and byte ranges
+
+Posts registers a stable `post:<id>` through internal `POST /api/v1/internal/file-references` with `{projectId, referenceId, fileIds, cleanupRemoved}`. Requires an HS256 system JWT for `posts-service`, `files:references:write`, configured issuer/audience. User sessions and standalone keys cannot use this route. Ready files must belong to the same project; file locks serialize registration and deletion.
+
+After permanent deletion commits, release with `fileIds: []`, `cleanupRemoved: true`. Only previously referenced files with zero remaining references are queued. Failed saves can leave safe retained references requiring reconciliation. Legacy unregistered files remain protected. Public deletion requires `FILES_DELETE_ENABLED=true`, uploader identity, project write access and zero references; Timepost permits deletion of new uploads with complete reference tracking, including unused uploads before their first registration. Never release before the owning transaction commits.
+
+Private `GET /api/v1/files/{id}/thumbnail` generates WebP within 512×512 for images. Content supports a single `Range: bytes=...` (206/416). Authorization and full source checksum verification remain. The full source is still downloaded: Range reduces client response size, not provider traffic. Thumbnails are generated on demand without persistent cache; video posters are not implemented.
+
+Requests return a validated `X-Request-Id` and `Server-Timing: app`; correlation propagates to Accounts and Projects. Set `HTTP_REQUEST_LOG_ENABLED=true` for sanitized route/status/duration logs without tokens or query values. Concurrent buffered downloads and thumbnail conversions are capped at four per API instance (429 when busy).
+
+Files uploaded before the reference-tracking migration stay protected even after their first registration, because older posts may still reference them. They require a complete verified backfill before cleanup can be enabled.
+
+Run `make test-references` after rebuilding to verify reference protection against the standalone PostgreSQL. The check creates only its own metadata, no stored bytes, and removes those rows.

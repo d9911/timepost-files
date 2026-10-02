@@ -15,7 +15,7 @@ export interface FileRepositoryPort {
     cursor: string | null,
     provider: StorageProvider,
   ): Promise<FileRecord[]>;
-  queueDelete(id: string): Promise<void>;
+  queueDelete(id: string, requireManaged?: boolean): Promise<void>;
   deleteStatus(id: string): Promise<DeleteStatus | undefined>;
 }
 export interface DeleteRepositoryPort {

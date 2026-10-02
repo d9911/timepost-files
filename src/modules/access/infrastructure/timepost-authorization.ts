@@ -1,3 +1,4 @@
+import { requestId } from '../../../shared/infrastructure/request-context.js';
 import type { Authorization } from '../application/authorization.js';
 import type { Environment } from '../../../shared/infrastructure/environment.js';
 import type { HttpRequest } from '../../../shared/infrastructure/http-request.js';
@@ -14,7 +15,10 @@ async function jsonResponse(
   let response;
   try {
     response = await request(url, {
-      headers: { Authorization: authorization },
+      headers: {
+        Authorization: authorization,
+        ...(requestId() ? { 'X-Request-Id': requestId()! } : {}),
+      },
       signal: AbortSignal.timeout(5000),
       redirect: 'error',
     });

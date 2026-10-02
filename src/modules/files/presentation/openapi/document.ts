@@ -38,6 +38,8 @@ export const fileOperations = [
   { method: 'get', path: '/api/v1/files/{id}/deletion' },
   { method: 'get', path: '/api/v1/files/{id}' },
   { method: 'get', path: '/api/v1/files/{id}/content' },
+  { method: 'get', path: '/api/v1/files/{id}/thumbnail' },
+  { method: 'post', path: '/api/v1/internal/file-references' },
   { method: 'get', path: '/health/ready' },
 ];
 
@@ -47,7 +49,7 @@ export const fileOpenApi: OpenAPIV3.Document = {
     title: 'Timepost Files API',
     version: '0.3.0',
     description:
-      'Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в режиме Timepost запрещено; автономный режим допускает удаление владельцем. Публичных ссылок нет. Swagger доступен только как локальный артефакт.',
+      'Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.',
   },
   servers: [{ url: 'http://localhost:3050' }],
   security: [{ bearerAuth: [] }],
@@ -290,7 +292,7 @@ fileOpenApi.paths['/api/v1/files/{id}']!.delete = {
   summary: 'Поставить окончательное удаление файла в очередь',
   parameters: [idParameter],
   description:
-    'Разрешено только автономному основному ключу при FILES_DELETE_ENABLED=true. Timepost запрещает удаление до реализации учёта ссылок из постов. 202 означает очередь; файл перестаёт читаться сразу, worker удаляет байты и фиксирует deleted. Повтор допускается в deleting; после завершения 404. Worker повторяет сбои до 10 попыток; failed требует вмешательства оператора.',
+    'Требуется FILES_DELETE_ENABLED=true. В Timepost загрузивший пользователь должен иметь право записи; допускаются новые после миграции файлы без ссылок, включая ещё не привязанные загрузки. Файлы до миграции учёта защищены даже после регистрации до полной сверки старых ссылок. 202 означает очередь; файл перестаёт читаться сразу, worker удаляет байты и фиксирует deleted. Повтор допускается в deleting; после завершения 404. Worker повторяет сбои до 10 попыток; failed требует вмешательства оператора.',
   responses: {
     ...errors,
     202: {
@@ -398,3 +400,107 @@ fileOpenApi.paths['/api/v1/files/{id}/deletion'] = {
     },
   },
 };
+
+fileOpenApi.paths['/api/v1/internal/file-references'] = {
+  post: {
+    operationId: 'replaceFileReferences',
+    summary: 'Заменить ссылки поста на файлы',
+    description:
+      'Только Timepost: HS256 system JWT, serviceId=posts-service, tokenType=system, permissions=[files:references:write], настроенные SYSTEM_JWT issuer/audience. Замена идемпотентна; блокировки сериализуют привязку и удаление. cleanupRemoved=true удаляет только новые после миграции ранее привязанные файлы без оставшихся ссылок. Старые файлы требуют полного backfill. Освобождение выполнять после commit удаления поста; сбой сохранения безопасно удерживает файл до сверки.',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['projectId', 'referenceId', 'fileIds'],
+            properties: {
+              projectId: { type: 'string', pattern: '^[0-9]+$' },
+              referenceId: { type: 'string', pattern: '^[a-zA-Z0-9:_-]{1,160}$' },
+              fileIds: { type: 'array', maxItems: 100, items: { type: 'string', format: 'uuid' } },
+              cleanupRemoved: { type: 'boolean', default: false },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      ...errors,
+      200: {
+        description: 'Ссылки сохранены',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['success', 'data'],
+              properties: {
+                success: { type: 'boolean', enum: [true] },
+                data: {
+                  type: 'object',
+                  required: ['referenceId'],
+                  properties: { referenceId: { type: 'string' } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+fileOpenApi.paths['/api/v1/files/{id}/thumbnail'] = {
+  get: {
+    operationId: 'downloadFileThumbnail',
+    summary: 'Приватная миниатюра фотографии',
+    description:
+      'WebP до 512×512 без увеличения. Доступ и SHA-256 исходника проверяются полностью. Видео не поддерживается; исходник читается целиком, кеша и фоновой генерации нет.',
+    parameters: [idParameter],
+    responses: {
+      ...errors,
+      200: {
+        description: 'Миниатюра',
+        content: { 'image/webp': { schema: { type: 'string', format: 'binary' } } },
+      },
+    },
+  },
+};
+const download = fileOpenApi.paths['/api/v1/files/{id}/content']?.get;
+if (download) {
+  download.parameters = [
+    ...(download.parameters ?? []),
+    {
+      name: 'Range',
+      in: 'header',
+      required: false,
+      schema: { type: 'string' },
+      description:
+        'Один byte-range либо суффикс. Полное чтение и checksum исходника выполняются до выдачи; multipart не поддерживается.',
+    },
+  ];
+  download.responses['206'] = {
+    description: 'Частичное содержимое; Content-Range, Accept-Ranges: bytes',
+    content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } },
+  };
+  download.responses['416'] = { description: 'Неверный диапазон; Content-Range: bytes */размер' };
+}
+for (const path of Object.values(fileOpenApi.paths)) {
+  if (!path) continue;
+  for (const method of ['get', 'post', 'delete'] as const) {
+    const operation = path[method];
+    if (!operation) continue;
+    for (const response of Object.values(operation.responses)) {
+      if ('$ref' in response) continue;
+      response.headers = {
+        ...response.headers,
+        'X-Request-Id': {
+          description: 'Проверенный идентификатор корреляции',
+          schema: { type: 'string' },
+        },
+        'Server-Timing': {
+          description: 'Время обработки API до отправки ответа',
+          schema: { type: 'string', example: 'app;dur=12.30' },
+        },
+      };
+    }
+  }
+}

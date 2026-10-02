@@ -1,3 +1,4 @@
+import type { FileReferencesPort } from '../../application/ports/file-references.js';
 import type { AuthMode } from '../../../access/contracts.js';
 import type { StorageProvider } from '../../domain/file.js';
 export interface FileHttpOptions {
@@ -8,4 +9,6 @@ export interface FileHttpOptions {
   contentPrefix?: string;
   uiEnabled?: boolean;
   staticDirectory: URL;
+  referenceRepository?: FileReferencesPort;
+  authenticateReferences?: (header: string | undefined) => Promise<void>;
 }

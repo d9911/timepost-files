@@ -1,3 +1,4 @@
+import { withRequestContext } from '../src/shared/infrastructure/request-context.js';
 import { bytesStream } from './support/byte-stream.js';
 import type { FileRecord } from '../src/modules/files/domain/file.js';
 import type { FileRepositoryPort } from '../src/modules/files/application/ports/file-repository.js';
@@ -41,14 +42,16 @@ test('HTTP: фото сохраняется, читается с сессией 
     if (user !== '1' || project !== '3') throw new FileError('PROJECT_FORBIDDEN', 'Нет доступа');
   });
   const server = createServer(
-    createHandler(
-      service,
-      async (header) => {
-        if (!header) throw new FileError('UNAUTHORIZED', 'Нужна сессия');
-        return header === 'Bearer owner' ? '1' : '2';
-      },
-      async () => {},
-      { uiEnabled: true, staticDirectory: new URL('../public/', import.meta.url) },
+    withRequestContext(
+      createHandler(
+        service,
+        async (header) => {
+          if (!header) throw new FileError('UNAUTHORIZED', 'Нужна сессия');
+          return header === 'Bearer owner' ? '1' : '2';
+        },
+        async () => {},
+        { uiEnabled: true, staticDirectory: new URL('../public/', import.meta.url) },
+      ),
     ),
   );
   server.listen(0, '127.0.0.1');
@@ -91,11 +94,32 @@ test('HTTP: фото сохраняется, читается с сессией 
     403,
   );
   const response = await fetch(content, {
-    headers: { Authorization: 'Bearer owner' },
+    headers: { Authorization: 'Bearer owner', 'X-Request-Id': 'trace-files-test' },
   });
+  assert.equal(response.headers.get('x-request-id'), 'trace-files-test');
+  assert.match(response.headers.get('server-timing') ?? '', /^app;dur=/);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('content-type'), 'image/png');
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  const ranged = await fetch(content, {
+    headers: { Authorization: 'Bearer owner', Range: 'bytes=2-9' },
+  });
+  assert.equal(ranged.status, 206);
+  assert.equal(ranged.headers.get('content-range'), `bytes 2-9/${bytes.length}`);
+  assert.deepEqual(Buffer.from(await ranged.arrayBuffer()), bytes.subarray(2, 10));
+  assert.equal(
+    (await fetch(content, { headers: { Authorization: 'Bearer owner', Range: 'bytes=99999-' } }))
+      .status,
+    416,
+  );
+  const thumbUrl = `${origin}/api/v1/files/${data.id}/thumbnail`;
+  assert.equal((await fetch(thumbUrl)).status, 401);
+  const thumb = await fetch(thumbUrl, { headers: { Authorization: 'Bearer owner' } });
+  assert.equal(thumb.status, 200);
+  assert.equal(thumb.headers.get('content-type'), 'image/webp');
+  const thumbMetadata = await sharp(Buffer.from(await thumb.arrayBuffer())).metadata();
+  assert.equal(thumbMetadata.format, 'webp');
+  assert.equal(thumbMetadata.width, 2);
   const video = await readFile(new URL('./fixtures/video.mp4', import.meta.url));
   const uploaded = await fetch(`${origin}/api/v1/files?projectId=3&fileName=clip.mp4`, {
     method: 'POST',

@@ -1,3 +1,5 @@
+import { FileError } from '../../../../shared/application/file-error.js';
+import type { FileReferenceChange } from '../../application/ports/file-references.js';
 import type {
   FileRepositoryPort,
   DeleteRepositoryPort,
@@ -31,6 +33,8 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
         '001-files.sql',
         '002-object-metadata-and-jobs.sql',
         '003-video-duration.sql',
+        '004-file-references.sql',
+        '005-reference-tracking-complete.sql',
       ]) {
         const existing = await client.query(
           'SELECT name FROM file_schema_migrations WHERE name=$1',
@@ -50,7 +54,7 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
   }
   async insert(file: FileRecord) {
     await this.pool.query(
-      'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider,duration_seconds) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+      'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider,duration_seconds,reference_tracking_complete) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true)',
       [
         file.id,
         file.ownerId,
@@ -80,12 +84,91 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
     );
     return rows;
   }
-  async queueDelete(id: string) {
-    // Состояние и задание фиксируются одним SQL statement, без промежуточного окна.
-    await this.pool.query(
-      `WITH changed AS (UPDATE stored_files SET status='deleting' WHERE id=$1 AND status IN ('ready','deleting') RETURNING id) INSERT INTO file_delete_jobs(file_id) SELECT id FROM changed ON CONFLICT(file_id) DO UPDATE SET status='pending',attempts=0,lease_id=NULL,available_at=now() WHERE file_delete_jobs.status='failed'`,
-      [id],
-    );
+  async queueDelete(id: string, requireManaged = false) {
+    if (!(this.pool instanceof Pool)) throw new Error('Для удаления требуется Pool');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Отдельный statement после блокировки видит ссылки, завершённые конкурентным запросом.
+      await client.query('SELECT id FROM stored_files WHERE id=$1 FOR UPDATE', [id]);
+      const { rows } = await client.query<{ id: string }>(
+        `WITH changed AS (UPDATE stored_files f SET status='deleting'
+          WHERE f.id=$1 AND f.status IN ('ready','deleting')
+          AND (NOT $2::boolean OR f.reference_tracking_complete)
+          AND NOT EXISTS(SELECT 1 FROM file_references r WHERE r.file_id=f.id) RETURNING f.id),
+        queued AS (INSERT INTO file_delete_jobs(file_id) SELECT id FROM changed
+          ON CONFLICT(file_id) DO UPDATE SET status='pending',attempts=0,lease_id=NULL,available_at=now()
+          WHERE file_delete_jobs.status='failed') SELECT id FROM changed`,
+        [id, requireManaged],
+      );
+      if (!rows.length)
+        throw new FileError('FILE_IN_USE', 'Файл используется или не прошёл учёт ссылок');
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async replaceReferences(change: FileReferenceChange) {
+    if (!(this.pool instanceof Pool)) throw new Error('Для ссылок требуется Pool');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Блокировка владельца сериализует повторные запросы, блокировка файлов — удаление.
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [
+        `${change.projectId}:${change.referenceId}`,
+      ]);
+      const previous = await client.query<{ file_id: string }>(
+        'SELECT file_id FROM file_references WHERE project_id=$1 AND reference_id=$2',
+        [change.projectId, change.referenceId],
+      );
+      const ids = [
+        ...new Set([...change.fileIds, ...previous.rows.map((row) => row.file_id)]),
+      ].sort();
+      const locked = await client.query<{ id: string; project_id: string; status: string }>(
+        'SELECT id,project_id,status FROM stored_files WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [ids],
+      );
+      for (const id of change.fileIds) {
+        const file = locked.rows.find((row) => row.id === id);
+        if (!file || file.project_id !== change.projectId || file.status !== 'ready')
+          throw new FileError('FILE_NOT_FOUND', 'Файл недоступен для привязки к посту');
+      }
+      await client.query(
+        'UPDATE stored_files SET reference_managed=true WHERE id=ANY($1::uuid[])',
+        [change.fileIds],
+      );
+      await client.query('DELETE FROM file_references WHERE project_id=$1 AND reference_id=$2', [
+        change.projectId,
+        change.referenceId,
+      ]);
+      for (const id of change.fileIds)
+        await client.query(
+          'INSERT INTO file_references(project_id,reference_id,file_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
+          [change.projectId, change.referenceId, id],
+        );
+      if (change.cleanupRemoved) {
+        const removed = previous.rows
+          .map((row) => row.file_id)
+          .filter((id) => !change.fileIds.includes(id));
+        // Удаляются только ранее зарегистрированные файлы, утратившие последнюю ссылку.
+        await client.query(
+          `WITH changed AS (
+          UPDATE stored_files f SET status='deleting' WHERE id=ANY($1::uuid[])
+          AND status='ready' AND reference_tracking_complete AND NOT EXISTS(SELECT 1 FROM file_references r WHERE r.file_id=f.id)
+          RETURNING id) INSERT INTO file_delete_jobs(file_id) SELECT id FROM changed ON CONFLICT DO NOTHING`,
+          [removed],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async deleteStatus(id: string) {
     const { rows } = await this.pool.query<DeleteStatus>(

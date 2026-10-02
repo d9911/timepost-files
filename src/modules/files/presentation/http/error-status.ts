@@ -5,6 +5,7 @@ export const fileErrorStatus: Readonly<Record<FileErrorCode, number>> = {
   AUTH_DEPENDENCY_UNAVAILABLE: 503,
   DELETE_DISABLED: 403,
   FILE_DELETING: 409,
+  FILE_IN_USE: 409,
   FILE_FORBIDDEN: 403,
   FILE_NOT_FOUND: 404,
   FILE_TOO_LARGE: 413,

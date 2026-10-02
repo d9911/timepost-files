@@ -1,3 +1,7 @@
+import { requestTiming } from '../../../../shared/infrastructure/request-context.js';
+import { contentRange } from './content-range.js';
+import { isRecord } from '../../../../shared/guards/is-record.js';
+import { idPattern } from '../../domain/file-policy.js';
 import { fileErrorStatus } from './error-status.js';
 import { publicMetadata } from './file-metadata.js';
 import type { FileHttpOptions } from './contracts.js';
@@ -32,9 +36,12 @@ export function createHandler(
   options: FileHttpOptions,
 ) {
   let uploads = 0;
+  let downloads = 0;
   return async (request: IncomingMessage, response: ServerResponse) => {
+    let countedDownload = false;
     const json = (status: number, value: unknown) => {
       response.writeHead(status, {
+        'Server-Timing': requestTiming(),
         'Content-Type': 'application/json; charset=utf-8',
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
@@ -61,6 +68,7 @@ export function createHandler(
           } as Record<string, string>
         )[name]!;
         response.writeHead(200, {
+          'Server-Timing': requestTiming(),
           'Content-Type': type,
           'X-Content-Type-Options': 'nosniff',
           'Cache-Control': 'no-store',
@@ -68,6 +76,36 @@ export function createHandler(
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
         });
         return response.end(await readFile(new URL(name, options.staticDirectory)));
+      }
+      if (request.method === 'POST' && url.pathname === '/api/v1/internal/file-references') {
+        if (!options.authenticateReferences || !options.referenceRepository)
+          throw new FileError('NOT_FOUND', 'Маршрут не найден');
+        await options.authenticateReferences(request.headers.authorization);
+        let body: unknown;
+        try {
+          body = JSON.parse((await readBytes(request, 16384)).toString());
+        } catch {
+          throw new FileError('INVALID_FILE_ID', 'Неверное тело запроса');
+        }
+        if (
+          !isRecord(body) ||
+          typeof body.projectId !== 'string' ||
+          !/^\d+$/.test(body.projectId) ||
+          typeof body.referenceId !== 'string' ||
+          !/^[a-zA-Z0-9:_-]{1,160}$/.test(body.referenceId) ||
+          !Array.isArray(body.fileIds) ||
+          body.fileIds.length > 100 ||
+          body.fileIds.some((id) => typeof id !== 'string' || !idPattern.test(id)) ||
+          (body.cleanupRemoved !== undefined && typeof body.cleanupRemoved !== 'boolean')
+        )
+          throw new FileError('INVALID_FILE_ID', 'Неверная привязка файлов');
+        await options.referenceRepository.replaceReferences({
+          projectId: body.projectId,
+          referenceId: body.referenceId,
+          fileIds: [...new Set((body.fileIds as string[]).map((id) => id.toLowerCase()))],
+          cleanupRemoved: body.cleanupRemoved === true,
+        });
+        return json(200, { success: true, data: { referenceId: body.referenceId } });
       }
       const userId = await authenticate(request.headers.authorization);
       if (request.method === 'GET' && url.pathname === '/api/v1/storage')
@@ -133,7 +171,9 @@ export function createHandler(
           uploads--;
         }
       }
-      const match = /^\/api\/v1\/files\/([^/]+)(\/content|\/deletion)?$/.exec(url.pathname);
+      const match = /^\/api\/v1\/files\/([^/]+)(\/content|\/deletion|\/thumbnail)?$/.exec(
+        url.pathname,
+      );
       if (match && request.method === 'GET') {
         if (match[2] === '/deletion')
           return json(200, { success: true, data: await service.deleteStatus(match[1]!, userId) });
@@ -142,6 +182,9 @@ export function createHandler(
             success: true,
             data: publicMetadata(await service.metadata(match[1]!, userId), options.contentPrefix),
           });
+        if (downloads >= 4) throw new FileError('UPLOAD_BUSY', 'Повторите скачивание позже');
+        downloads++;
+        countedDownload = true;
         const { file, stream } = await service.content(match[1]!, userId);
         const bytes = await readBytes(stream, uploadLimit(file.mimeType));
         if (
@@ -149,9 +192,35 @@ export function createHandler(
           (file.sha256 && createHash('sha256').update(bytes).digest('hex') !== file.sha256)
         )
           throw new FileError('STORAGE_INVALID_RESPONSE', 'Размер файла в хранилище изменился');
-        response.writeHead(200, {
+        if (match[2] === '/thumbnail') {
+          const thumbnail = await service.thumbnail(bytes, file.mimeType);
+          response.writeHead(200, {
+            'Server-Timing': requestTiming(),
+            'Content-Type': 'image/webp',
+            'Content-Length': thumbnail.length,
+            'Cache-Control': 'private, no-store',
+            'X-Content-Type-Options': 'nosniff',
+          });
+          return response.end(thumbnail);
+        }
+        const range = contentRange(request.headers.range, bytes.length);
+        if (range === false) {
+          response.writeHead(416, {
+            'Server-Timing': requestTiming(),
+            'Content-Range': `bytes */${bytes.length}`,
+            'Cache-Control': 'private, no-store',
+          });
+          return response.end();
+        }
+        const payload = range ? bytes.subarray(range.start, range.end + 1) : bytes;
+        response.writeHead(range ? 206 : 200, {
+          'Server-Timing': requestTiming(),
+          'Accept-Ranges': 'bytes',
+          ...(range
+            ? { 'Content-Range': `bytes ${range.start}-${range.end}/${bytes.length}` }
+            : {}),
           'Content-Type': file.mimeType,
-          'Content-Length': bytes.length,
+          'Content-Length': payload.length,
           'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff',
           'Content-Disposition':
@@ -159,11 +228,11 @@ export function createHandler(
               ? 'inline'
               : `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName ?? 'file')}`,
         });
-        return response.end(bytes);
+        return response.end(payload);
       }
       if (match && !match[2] && request.method === 'DELETE')
         return json(202, { success: true, data: await service.delete(match[1]!, userId) });
-      // В интеграции Timepost удаление остаётся запрещено до учёта ссылок из постов.
+      // Ссылки из постов учитываются внутренним маршрутом с отдельным сервисным токеном.
       throw new FileError('NOT_FOUND', 'Маршрут не найден');
     } catch (error) {
       request.resume();
@@ -175,6 +244,8 @@ export function createHandler(
             error instanceof FileError ? error.message : 'Файловый сервис временно недоступен',
         },
       });
+    } finally {
+      if (countedDownload) downloads--;
     }
   };
 }

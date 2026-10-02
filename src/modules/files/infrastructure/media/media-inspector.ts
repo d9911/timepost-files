@@ -4,6 +4,13 @@ import type { MediaInspector, MediaMetadata } from '../../application/ports/medi
 import { inspectVideo } from './inspect-video.js';
 
 export class ValidatedMediaInspector implements MediaInspector {
+  async thumbnail(bytes: Uint8Array): Promise<Uint8Array> {
+    return sharp(Buffer.from(bytes), { limitInputPixels: 4096 * 4096, failOn: 'warning' })
+      .rotate()
+      .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+  }
   async inspect(bytes: Uint8Array, mimeType: string): Promise<MediaMetadata> {
     if (mimeType.startsWith('video/'))
       return { mimeType, ...(await inspectVideo(bytes, mimeType)) };

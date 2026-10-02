@@ -5,5 +5,6 @@ export interface MediaMetadata {
   durationSeconds?: number | null;
 }
 export interface MediaInspector {
+  thumbnail?(bytes: Uint8Array): Promise<Uint8Array>;
   inspect(bytes: Uint8Array, mimeType: string): Promise<MediaMetadata>;
 }

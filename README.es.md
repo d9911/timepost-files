@@ -51,7 +51,7 @@ Contrato: [openapi.json](openapi.json) y [openapi.yaml](openapi.yaml). Generaci�
 
 Imágenes y archivos genéricos: máximo 10 MiB (`10 × 1024 × 1024` bytes). Vídeos: máximo 100 MiB (`100 × 1024 × 1024` bytes). JPEG/PNG/WebP deben decodificarse correctamente, contener un solo fotograma y no superar 4096 × 4096 píxeles. ffprobe valida MP4 H.264/AAC y WebM VP8/VP9 con Opus/Vorbis: una pista de vídeo, como máximo una de audio, hasta 4096 × 4096 píxeles y 60 minutos. Los metadatos incluyen `durationSeconds`.
 
-No se implementan HEIC, AVI, MOV, transcodificación, extracción de portadas ni decodificación completa de vídeo. La descarga autenticada de vídeo utiliza un Blob y el reproductor existente; no hay HTTP Range ni cargas reanudables. Los archivos genéricos independientes se guardan como `application/octet-stream` y se descargan como adjuntos. No hay análisis antivirus.
+No se implementan HEIC, AVI, MOV, transcodificación, extracción de portadas ni decodificación completa de vídeo. La descarga autenticada de vídeo utiliza un Blob y el reproductor existente; la API admite un único rango HTTP; no hay cargas reanudables. Los archivos genéricos independientes se guardan como `application/octet-stream` y se descargan como adjuntos. No hay análisis antivirus.
 
 Las descargas verifican el tamaño y SHA-256. Una carga pasa a `ready` cuando el proveedor la confirma. El worker encola la limpieza de cargas `pending` sin terminar después de 24 horas.
 
@@ -61,7 +61,7 @@ El archivo pasa por `deleting` → `deleted`; el trabajo por `pending` → `runn
 
 Los comandos del workspace `make start`, `make dev` (alias de `dev-local`), `make dev-docker` y `make dev-local` incluyen Files. `make files-start` inicia Files y sus dependencias. El stack principal usa por defecto el simulador, sesiones de Accounts y comprobaciones de permisos de Projects. Para la nube, configure `FILES_STORAGE_PROVIDER=yandex` y `YANDEX_DISK_OAUTH_TOKEN` en el `.env` raíz.
 
-El frontend utiliza `/api/files-service`. Posts valida `mediaFileId` mediante Files. La eliminación directa en Timepost está bloqueada hasta implementar el control de referencias de publicaciones. Las claves independientes no sustituyen los permisos de usuario de Timepost.
+El frontend utiliza `/api/files-service`. Posts valida `mediaFileId` mediante Files. La eliminación protege archivos vinculados y antiguos sin registrar. Las claves independientes no sustituyen los permisos de usuario de Timepost.
 
 `make dev` ya prepara datos iniciales. `make seed` añade los registros de demostración que faltan en Accounts/Projects/Posts/Notifications y el catálogo Analytics; no reinicia una base de datos existente. Files crea bytes mediante cargas correctas, no archivos ficticios de seed. Reiniciar o ejecutar seed no vacía sus volúmenes.
 
@@ -151,3 +151,17 @@ En el workspace, `make api-sync` actualiza contratos y snapshots; `make api-chec
 `make files-integration-smoke` comprueba Accounts/Projects → Files → borrador Reels de Posts → reapertura/actualización → contenido privado. Requiere cuenta/proyecto de seed y credenciales locales de `.env.seed`. Elimina su publicación y deja un archivo pequeño porque la eliminación directa en Timepost está bloqueada. No publica en redes sociales.
 
 Informes opcionales del workspace: [servicio independiente](../archive/docs/reports/2026-10-02-files-standalone.md), [integración de medios](../archive/docs/reports/2026-10-02-files-media-integration.md), [arquitectura](../archive/docs/reports/2026-10-02-files-clean-architecture.md).
+
+## Referencias, miniaturas y rangos
+
+Posts registra `post:<id>` mediante `POST /api/v1/internal/file-references` con `{projectId, referenceId, fileIds, cleanupRemoved}`. Requiere JWT de sistema HS256 para `posts-service`, permiso `files:references:write` e issuer/audience configurados. Sesiones y claves autónomas no sirven. Solo archivos listos del mismo proyecto; bloqueos serializan registro y eliminación.
+
+Tras el commit de eliminación permanente, liberar con `fileIds: []`, `cleanupRemoved: true`. Solo archivos anteriormente vinculados sin referencias restantes entran en la cola. Fallos de guardado pueden dejar referencias seguras que requieren reconciliación. Archivos antiguos sin registrar siguen protegidos. Eliminación pública exige `FILES_DELETE_ENABLED=true`, usuario que subió, escritura en proyecto y cero referencias; Timepost admite nuevas cargas con control completo, incluso antes del primer registro. No liberar antes del commit.
+
+`GET /api/v1/files/{id}/thumbnail` genera WebP de hasta 512×512 para imágenes privadas. Contenido admite un único `Range: bytes=...` (206/416), con autorización y SHA-256 completos. Se descarga todo el original: Range reduce respuesta al cliente, no tráfico del proveedor. Miniaturas bajo demanda sin caché persistente; no hay posters de vídeo.
+
+Las respuestas incluyen `X-Request-Id` validado y `Server-Timing: app`; la correlación se transmite a Accounts y Projects. `HTTP_REQUEST_LOG_ENABLED=true` activa registros de ruta, estado y duración sin tokens ni query. Descargas y miniaturas simultáneas se limitan a cuatro por instancia (429 si está ocupada).
+
+Los archivos anteriores a la migración de referencias quedan protegidos incluso después del primer registro: publicaciones antiguas pueden utilizarlos. Su limpieza requiere una migración completa y verificada de referencias.
+
+Tras recompilar, `make test-references` verifica referencias en PostgreSQL autónomo. Crea solo sus propios metadatos, sin bytes, y elimina esas filas.

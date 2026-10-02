@@ -118,9 +118,9 @@ components:
 info:
   description: >-
     Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь
-    удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в режиме
-    Timepost запрещено; автономный режим допускает удаление владельцем. Публичных ссылок нет. Swagger доступен только
-    как локальный артефакт.
+    удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в
+    Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger
+    доступен только как локальный артефакт.
   title: Timepost Files API
   version: 0.3.0
 openapi: 3.0.3
@@ -179,66 +179,176 @@ paths:
                   - data
                 type: object
           description: Страница списка; cursor — последний ID, не номер страницы.
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Список файлов проекта с курсором
     post:
       description: >-
@@ -306,74 +416,185 @@ paths:
                   - data
                 type: object
           description: Подтверждённый файл
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Загрузить файл проекта
   /api/v1/files/{id}:
     delete:
       description: >-
-        Разрешено только автономному основному ключу при FILES_DELETE_ENABLED=true. Timepost запрещает удаление до
-        реализации учёта ссылок из постов. 202 означает очередь; файл перестаёт читаться сразу, worker удаляет байты и
-        фиксирует deleted. Повтор допускается в deleting; после завершения 404. Worker повторяет сбои до 10 попыток;
-        failed требует вмешательства оператора.
+        Требуется FILES_DELETE_ENABLED=true. В Timepost загрузивший пользователь должен иметь право записи; допускаются
+        новые после миграции файлы без ссылок, включая ещё не привязанные загрузки. Файлы до миграции учёта защищены
+        даже после регистрации до полной сверки старых ссылок. 202 означает очередь; файл перестаёт читаться сразу,
+        worker удаляет байты и фиксирует deleted. Повтор допускается в deleting; после завершения 404. Worker повторяет
+        сбои до 10 попыток; failed требует вмешательства оператора.
       operationId: deleteFile
       parameters:
         - in: path
@@ -410,66 +631,176 @@ paths:
                   - data
                 type: object
           description: Удаление принято, байты ещё могут находиться у провайдера.
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Поставить окончательное удаление файла в очередь
     get:
       operationId: getFileMetadata
@@ -497,66 +828,176 @@ paths:
                   - data
                 type: object
           description: Подтверждённый файл
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Получить метаданные доступного файла
   /api/v1/files/{id}/content:
     get:
@@ -571,6 +1012,14 @@ paths:
           required: true
           schema:
             format: uuid
+            type: string
+        - description: >-
+            Один byte-range либо суффикс. Полное чтение и checksum исходника выполняются до выдачи; multipart не
+            поддерживается.
+          in: header
+          name: Range
+          required: false
+          schema:
             type: string
       responses:
         '200':
@@ -600,66 +1049,205 @@ paths:
                 format: binary
                 type: string
           description: Файл
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '206':
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: 'Частичное содержимое; Content-Range, Accept-Ranges: bytes'
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '416':
+          description: 'Неверный диапазон; Content-Range: bytes */размер'
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Прочитать приватный файл
   /api/v1/files/{id}/deletion:
     get:
@@ -714,67 +1302,597 @@ paths:
                   - data
                 type: object
           description: Состояние и число попыток, без ответов и секретов провайдера.
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Прочитать состояние очереди удаления
+  /api/v1/files/{id}/thumbnail:
+    get:
+      description: >-
+        WebP до 512×512 без увеличения. Доступ и SHA-256 исходника проверяются полностью. Видео не поддерживается;
+        исходник читается целиком, кеша и фоновой генерации нет.
+      operationId: downloadFileThumbnail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            image/webp:
+              schema:
+                format: binary
+                type: string
+          description: Миниатюра
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Приватная миниатюра фотографии
+  /api/v1/internal/file-references:
+    post:
+      description: >-
+        Только Timepost: HS256 system JWT, serviceId=posts-service, tokenType=system,
+        permissions=[files:references:write], настроенные SYSTEM_JWT issuer/audience. Замена идемпотентна; блокировки
+        сериализуют привязку и удаление. cleanupRemoved=true удаляет только новые после миграции ранее привязанные файлы
+        без оставшихся ссылок. Старые файлы требуют полного backfill. Освобождение выполнять после commit удаления
+        поста; сбой сохранения безопасно удерживает файл до сверки.
+      operationId: replaceFileReferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                cleanupRemoved:
+                  default: false
+                  type: boolean
+                fileIds:
+                  items:
+                    format: uuid
+                    type: string
+                  maxItems: 100
+                  type: array
+                projectId:
+                  pattern: ^[0-9]+$
+                  type: string
+                referenceId:
+                  pattern: ^[a-zA-Z0-9:_-]{1,160}$
+                  type: string
+              required:
+                - projectId
+                - referenceId
+                - fileIds
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      referenceId:
+                        type: string
+                    required:
+                      - referenceId
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Ссылки сохранены
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Заменить ссылки поста на файлы
   /api/v1/storage:
     get:
       description: >-
@@ -828,66 +1946,176 @@ paths:
                   - data
                 type: object
           description: Текущий режим и возможности.
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '413':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '415':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '429':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '502':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       summary: Прочитать безопасную конфигурацию хранилища
   /health/ready:
     get:
@@ -907,12 +2135,32 @@ paths:
                   - status
                 type: object
           description: БД доступна, OAuth настроен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
       security: []
       summary: Проверить БД и наличие настройки OAuth
 security:

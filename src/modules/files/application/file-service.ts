@@ -94,6 +94,11 @@ export class FileService {
     if (file.status !== 'ready') throw new FileError('FILE_DELETING', 'Файл удаляется');
     return { file, stream: await this.storage.download(id) };
   }
+  async thumbnail(bytes: Uint8Array, mimeType: string) {
+    if (!mimeType.startsWith('image/') || !this.mediaInspector.thumbnail)
+      throw new FileError('INVALID_IMAGE', 'Миниатюра доступна только для фотографий');
+    return this.mediaInspector.thumbnail(bytes);
+  }
   async list(userId: string, projectId: string | null, limit = '20', cursor: string | null = null) {
     if (!projectId || !/^\d+$/.test(projectId))
       throw new FileError('INVALID_PROJECT', 'Требуется проект');
@@ -131,7 +136,7 @@ export class FileService {
     if (!this.options.deleteEnabled)
       throw new FileError('DELETE_DISABLED', 'Удаление отключено для интеграции с постами');
     await this.accessible(id, userId, true);
-    await this.repository.queueDelete(id);
+    await this.repository.queueDelete(id, this.options.requireManagedReferences);
     return { id, status: 'deleting' };
   }
 }
