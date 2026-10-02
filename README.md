@@ -1,117 +1,90 @@
 # Timepost Files
 
-Самостоятельный приватный REST-сервис на Node.js 24: API, PostgreSQL и worker.
-Провайдеры байтов — Яндекс Диск или явно выбранный локальный симулятор.
-Angular не используется. Интерфейс управления написан на обычном JavaScript.
+[English](README.md) · [Русский](README.ru.md) · [Español](README.es.md)
 
-## Автономный запуск
+A private REST file-storage service built with Node.js 24 and TypeScript. It runs an API, PostgreSQL and a deletion worker. File bytes are stored on Yandex Disk or through an explicitly selected local filesystem provider (`simulator`). The management UI uses plain TypeScript.
 
-В каталоге `files/` выполните `make start`. Команда создаёт `.env` с отдельными
-случайными ключами и паролем БД, затем собирает Docker-контейнеры и ждёт готовности.
-Повторный запуск сохраняет настройки и тома. Из корня Timepost:
-`make files-standalone`; резервный вход: `make -f scripts/main/Makefile files-standalone`.
-Для отдельного использования достаточно каталога `files/`, Docker Compose и Node.js 24
-для подготовки окружения; соседние проекты не требуются.
+## Standalone quick start
 
-Интерфейс: <http://127.0.0.1:3060>. Введите `FILES_API_KEY` из локального `.env`,
-выберите числовой ID пространства и подключитесь. Доступны список с догрузкой,
-загрузка, скачивание и постановка удаления в очередь. Ключ хранится только в памяти
-страницы. `FILES_READONLY_API_KEY` разрешает чтение без загрузки и удаления.
-Оба ключа относятся ко всему экземпляру, включая все пространства: это сервисные
-ключи, а не многопользовательская модель прав. Порт опубликован только на loopback.
-OAuth-токен в браузер не передаётся. Не публикуйте `.env`.
+Run `make start` from this directory. It installs build dependencies, compiles the service, creates `.env` with random service keys and a database password, builds Docker containers and waits for readiness. Existing configuration and volumes are preserved. Standalone use requires this directory, Docker Compose and Node.js 24; neighboring Timepost repositories are optional.
 
-`make smoke` проверяет только симулятор и удаляет собственные тестовые файлы.
-Из корня: `make files-smoke`. `make ps`, `make logs`, `make stop` — управление
-контейнерами; остановка сохраняет данные. `make config` проверяет Compose без вывода секретов.
+From the Timepost workspace root, use `make files-standalone`. The fallback entry point is `make -f scripts/main/Makefile files-standalone`.
 
-## Яндекс Диск
+Open <http://127.0.0.1:3060>, enter `FILES_API_KEY` from your local `.env` and choose a numeric workspace ID. The UI supports listing with load-more pagination, uploading, downloading and queuing deletion. The key stays in page memory. `FILES_READONLY_API_KEY` grants read-only access.
 
-В `files/.env` задайте `STORAGE_PROVIDER=yandex` и `YANDEX_DISK_OAUTH_TOKEN`,
-затем повторите `make start`. Токен должен разрешать работу с папкой приложения
-`app:/timepost`: [официальная документация REST API и OAuth](https://yandex.ru/dev/disk/rest/).
-Метаданные остаются в PostgreSQL, байты записываются на Диск. При ошибке облака
-сервис не переключается на симулятор. Файлы другого провайдера скрываются из списка;
-метаданные и скачивание по их ID возвращают ошибку несовпадения провайдера.
-Подключение личного Диска каждым пользователем и Google Drive не реализованы.
-Реальный облачный прогон требует действующего токена и пока не подтверждён.
+Standalone keys apply to the whole instance, including all workspaces; they are service credentials rather than per-user permissions. The HTTP port binds to loopback. Cloud OAuth credentials stay on the server. Keep `.env` private.
 
-## API и жизненный цикл
+| Command                         | Purpose                                               |
+| ------------------------------- | ----------------------------------------------------- |
+| `make start`                    | Build and start API, PostgreSQL and worker            |
+| `make ps` / `make logs`         | Inspect containers and API/worker logs                |
+| `make stop`                     | Stop containers while preserving data                 |
+| `make config`                   | Validate Compose without printing secrets             |
+| `make smoke`                    | Test the simulator and remove only its own test files |
+| `make test-db`                  | Exercise PostgreSQL insert/get/list with rollback     |
+| `make build` / `make typecheck` | Compile / check strict TypeScript                     |
+| `make test` / `make lint`       | Run tests / ESLint and formatting checks              |
+| `make docs`                     | Generate standalone HTML API documentation            |
 
-Контракт: [openapi.json](openapi.json); YAML для Timepost: [openapi.yaml](openapi.yaml).
-Автономная генерация: `npm run openapi:generate`; проверка: `npm run openapi:check`.
-HTTP Swagger не открывается.
+The workspace equivalent of `make smoke` is `make files-smoke`.
 
-- `POST /api/v1/files?projectId=1&fileName=photo.png`: сырые байты тела, Bearer-ключ.
-- `GET /api/v1/files?projectId=1&limit=20&cursor=UUID`: список готовых файлов, курсорная пагинация.
-- `GET /api/v1/files/{id}` и `GET /api/v1/files/{id}/content`: метаданные и приватное содержимое.
-- `DELETE /api/v1/files/{id}`: HTTP 202, долговечное задание удаления.
-- `GET /api/v1/files/{id}/deletion`: состояние задания и число попыток, также после удаления.
-- `GET /api/v1/storage`: безопасные сведения о режиме и возможностях; `GET /health/ready`: готовность.
+## Yandex Disk configuration
 
-Фото и произвольные файлы: 10 MiB (10 × 1024 × 1024 байт).
-Видео: 100 MiB (100 × 1024 × 1024 байт). JPEG/PNG/WebP проверяются декодером:
-один кадр, не более 4096 × 4096 пикселей. MP4 H.264/AAC и WebM VP8/VP9 с
-Opus/Vorbis проверяются через ffprobe: один видеопоток, не более одного аудиопотока,
-до 4096 × 4096 и 60 минут. Длительность возвращается как `durationSeconds`.
-HEIC, AVI, MOV, транскодирование, извлечение обложек и полный прогон декодера видео
-пока не реализованы. Видео скачивается с авторизацией как Blob и показывается
-существующим видеоплеером; Range и возобновляемая загрузка пока отсутствуют.
-Прочие байты в автономном режиме сохраняются
-как `application/octet-stream` и скачиваются вложением; проверка антивирусом отсутствует.
-Размер и SHA-256 проверяются при выдаче. Загрузка становится `ready` после подтверждения
-провайдера. Незавершённые `pending` старше суток ставятся на очистку worker.
+Set `STORAGE_PROVIDER=yandex` and `YANDEX_DISK_OAUTH_TOKEN` in `files/.env`, then run `make start` again. The token needs access to the application folder `app:/timepost`; see the [official REST API and OAuth documentation](https://yandex.ru/dev/disk/rest/).
 
-Удаление проходит `deleting` → `deleted`; задания — `pending` → `running` → `done`
-либо повтор/`failed`. PostgreSQL хранит очередь, lease на 120 секунд и повторные попытки;
-после 10 обработанных неудач задание останавливается. Повторный DELETE возобновляет
-остановленное задание. Метаданные удалённого файла сохраняются для аудита.
-Redis, Kafka и RabbitMQ для этой очереди не требуются. Миграции применяются API
-последовательно под блокировкой БД. Резервные копии томов и облака настраиваются отдельно.
+Metadata remains in PostgreSQL; bytes are uploaded to Disk. Cloud errors do not trigger a fallback to local storage. Records belonging to another provider are hidden from listings; metadata/content requests for them return a provider-mismatch error. Personal Disk connections for individual users and Google Drive support are not implemented. Real cloud execution requires a valid token and has not been verified.
 
-## Подключение Timepost
+## API and lifecycle
 
-Обычные `make start`, `make dev` (он вызывает `dev-local`), `make dev-docker`, `make dev-local` включают Files.
-`make files-start` запускает только Files и его зависимости. В общем стеке по
-умолчанию используется симулятор с Accounts-сессиями и проверкой прав через Projects.
-Для Яндекс Диска задайте в корневом `.env` `FILES_STORAGE_PROVIDER=yandex` и
-`YANDEX_DISK_OAUTH_TOKEN`; облачный режим требует действующего OAuth.
-Фронтенд использует `/api/files-service`, Posts проверяет `mediaFileId` через Files.
-Удаление файлов в этом режиме запрещено до учёта ссылок из публикаций.
-Это отдельный запуск: автономные сервисные ключи не заменяют пользовательские права Timepost.
+The contract is available as [openapi.json](openapi.json) and [openapi.yaml](openapi.yaml). Run `npm run openapi:generate` to regenerate it or `npm run openapi:check` to check it. There is no exposed HTTP Swagger endpoint. This is the service's own REST API, rather than a GraphQL schema or an exact copy of the Yandex Disk HTTP API.
 
-При `make dev` подготовка данных уже вызывается автоматически. `make seed` добавляет
-недостающие демонстрационные записи Accounts/Projects/Posts/Notifications и справочник
-Analytics; это не сброс существующей БД. Files не создаёт вымышленных файлов из seed:
-байты появляются после успешного upload API. Перезапуск и seed не очищают тома Files.
+| Request                                              | Behavior                                                    |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/v1/files?projectId=1&fileName=photo.png`  | Upload raw bytes with Bearer authentication                 |
+| `GET /api/v1/files?projectId=1&limit=20&cursor=UUID` | List ready files with cursor pagination                     |
+| `GET /api/v1/files/{id}`                             | Read metadata                                               |
+| `GET /api/v1/files/{id}/content`                     | Download private content                                    |
+| `DELETE /api/v1/files/{id}`                          | Return HTTP 202 and queue durable deletion                  |
+| `GET /api/v1/files/{id}/deletion`                    | Read deletion status and attempts, including after deletion |
+| `GET /api/v1/storage`                                | Read sanitized storage capabilities                         |
+| `GET /health/ready`                                  | Check readiness                                             |
 
-Путь данных редактора: браузер → `/api/files-service/api/v1/files` → Files → провайдер.
-После загрузки браузер отправляет в Posts JSON с `mediaFileId`. Posts проверяет
-метаданные файла по пользовательской сессии и сохраняет тип `image`/`video`, размеры
-и ссылку. При повторном открытии редактора сохранённый ID возвращается, повторная
-загрузка того же медиа не требуется. Reels и Stories используют тот же файл; это
-не подтверждение доставки в социальную сеть.
+Images and generic files are limited to 10 MiB (`10 × 1024 × 1024` bytes); videos to 100 MiB (`100 × 1024 × 1024` bytes). JPEG/PNG/WebP must decode successfully, contain one frame and fit within 4096 × 4096 pixels. ffprobe validates MP4 H.264/AAC and WebM VP8/VP9 with Opus/Vorbis: one video stream, at most one audio stream, up to 4096 × 4096 pixels and 60 minutes. Metadata includes `durationSeconds`.
 
-Фотографии аватаров и обложек технически можно хранить как изображения проекта.
-Сохранение ссылки в Accounts/Projects — отдельный контракт владельца этих данных;
-автоматическая интеграция всех аватаров, обложек и вложений чатов пока не реализована.
+HEIC, AVI, MOV, transcoding, poster extraction and full video decoding are not implemented. Authenticated video downloads use a Blob and the existing player; HTTP Range and resumable uploads are not supported. Standalone generic files are stored as `application/octet-stream` and downloaded as attachments. Antivirus scanning is not implemented.
 
-## Примеры для автономного API
+Downloads verify size and SHA-256. Uploads become `ready` after provider confirmation. The worker queues cleanup for unfinished `pending` uploads older than 24 hours.
 
-Ключ экспортируйте локально из своего `.env`, не вставляйте его в документацию.
-В Timepost вместо сервисного ключа используется пользовательский Bearer-токен.
+File deletion transitions through `deleting` → `deleted`; jobs use `pending` → `running` → `done`, retry or `failed`. PostgreSQL provides the durable queue and a 120-second lease. A job stops after 10 processed failures; repeating DELETE restarts a stopped job. Deleted metadata is retained for audit. This queue does not require Redis, Kafka or RabbitMQ. API migrations run serially under a database lock. Configure volume/cloud backups separately.
+
+## Timepost integration
+
+Workspace `make start`, `make dev` (an alias for `dev-local`), `make dev-docker` and `make dev-local` include Files. `make files-start` starts Files and its dependencies. The main stack defaults to the simulator with Accounts sessions and Projects access checks. For cloud storage, set `FILES_STORAGE_PROVIDER=yandex` and `YANDEX_DISK_OAUTH_TOKEN` in the root `.env`.
+
+The frontend uses `/api/files-service`. Posts validates `mediaFileId` through Files. Direct file deletion in Timepost is blocked until publication references are accounted for. Standalone service keys do not replace Timepost user permissions.
+
+`make dev` already prepares seed data. `make seed` adds missing demo records in Accounts/Projects/Posts/Notifications and the Analytics catalog; it does not reset an existing database. Files creates bytes through successful uploads, rather than fabricated seed files. Restarting or seeding does not clear its volumes.
+
+Editor data flow: browser → `/api/files-service/api/v1/files` → Files → storage provider. The browser then submits `mediaFileId` to Posts. Posts checks metadata using the user session and stores the image/video type, dimensions and reference. Reopening the editor returns the saved ID without requiring another upload. Reels and Stories use the same storage flow; this does not confirm delivery to a social network.
+
+Avatar and cover images can technically be stored as project images. Persisting their references requires the owning Accounts/Projects contract. Automatic integration of all avatars, covers and chat attachments is not implemented.
+
+## Standalone API examples
+
+Export the service key locally from your `.env`; do not embed it in documentation. Timepost uses a user Bearer token instead.
 
 ```sh
-# Загрузить фотографию; ответ содержит data.mediaFileId.
+# Upload an image; the response contains data.mediaFileId.
 curl --fail-with-body -H "Authorization: Bearer $FILES_API_KEY" \
   -H 'Content-Type: image/jpeg' --data-binary @photo.jpg \
   'http://127.0.0.1:3060/api/v1/files?projectId=1&fileName=photo.jpg'
 
-# Аналогично загрузить MP4: замените MIME на video/mp4 и путь файла.
+# For MP4 uploads, use video/mp4 and the corresponding file path.
+# List files.
 curl --fail-with-body -H "Authorization: Bearer $FILES_API_KEY" \
   'http://127.0.0.1:3060/api/v1/files?projectId=1&limit=20'
 
-# Подставьте UUID из ответа загрузки.
+# Set FILE_ID to the UUID returned by the upload.
 curl --fail-with-body -H "Authorization: Bearer $FILES_API_KEY" \
   "http://127.0.0.1:3060/api/v1/files/$FILE_ID/content" --output saved-file
 curl --fail-with-body -X DELETE -H "Authorization: Bearer $FILES_API_KEY" \
@@ -120,54 +93,61 @@ curl --fail-with-body -H "Authorization: Bearer $FILES_API_KEY" \
   "http://127.0.0.1:3060/api/v1/files/$FILE_ID/deletion"
 ```
 
-## Связь с API Яндекс Диска
+## Relationship to Yandex Disk
 
-Внешний контракт Files остаётся одинаковым для обоих провайдеров. Яндекс-адаптер
-работает с настоящими REST-операциями Диска; симулятор реализует тот же интерфейс
-`ready/upload/download/delete` локально. Это не HTTP-клон API Диска.
+Both providers implement the same internal `ready/upload/download/delete` interface and preserve the external Files contract.
 
-| Операция Files | Адаптер Яндекс Диска | Симулятор |
-| --- | --- | --- |
-| Подготовка | Создание `app:/timepost` через `PUT /resources` | Подготовка каталога |
-| Upload | Получение адреса `/resources/upload`, затем бинарный PUT | Запись UUID-файла и sync |
-| Content | Получение адреса `/resources/download`, затем GET | Чтение UUID-файла |
-| Delete | `DELETE /resources` с `permanently=true` | Удаление UUID-файла |
-| List/metadata | Метаданные PostgreSQL нашего сервиса | Те же метаданные PostgreSQL |
+| Files operation | Yandex Disk adapter                         | Local simulator              |
+| --------------- | ------------------------------------------- | ---------------------------- |
+| Preparation     | `PUT /resources` for `app:/timepost`        | Create storage directory     |
+| Upload          | `/resources/upload`, followed by binary PUT | Write and sync a UUID file   |
+| Content         | `/resources/download`, followed by GET      | Read a UUID file             |
+| Delete          | `DELETE /resources` with `permanently=true` | Unlink a UUID file           |
+| List/metadata   | This service's PostgreSQL metadata          | The same PostgreSQL metadata |
 
-OAuth передаётся только API Диска. Временные адреса не возвращаются браузеру;
-проверяется HTTPS и домен, редиректы запрещены. HTTP 202 от облачного провайдера
-не выдаётся как завершённая загрузка; незавершённая операция остаётся pending.
-Основание: [адаптер](src/yandex-disk.mjs) и
-[официальная документация Яндекса](https://yandex.ru/dev/disk/rest/).
+OAuth is sent only to the Disk API. Temporary transfer URLs stay on the server; HTTPS and domains are checked, and redirects are rejected. A provider HTTP 202 does not mean a completed upload; unfinished operations remain pending. See the [adapter implementation](src/modules/files/infrastructure/storage/yandex-disk-storage.ts), [Yandex REST API](https://yandex.ru/dev/disk/rest/), [Disk API introduction](https://yandex.ru/dev/disk-api/doc/ru/) and [OAuth application registration](https://www.yandex.ru/dev/id/doc/ru/register-client). The adapter still needs a real-token cloud test.
 
-## Собственный сервер
+## Hosting on your own server
 
-Для хранения на своём сервере используйте явный `simulator`: его файловый адаптер
-записывает реальные байты в постоянный volume `objects`, а метаданные — в `metadata`.
-Название режима обозначает локальную альтернативу облаку, а не фиктивные ответы.
-Сервис с этим адаптером можно запускать и на сервере. Настройте резервное копирование
-обоих томов, HTTPS reverse proxy и отдельные сервисные ключи; наружу не публикуйте БД.
-Compose по умолчанию оставляет HTTP-порт на loopback. Регистрация пользователей
-не дублируется: автономно используются ключи, в Timepost — Accounts.
+The explicit `simulator` provider stores real bytes in the persistent `objects` volume and metadata in `metadata`. It can run on your server. Configure backups for both volumes, an HTTPS reverse proxy and separate service keys. Keep PostgreSQL private; Compose binds HTTP to loopback by default. User registration belongs to Accounts in Timepost; standalone mode uses service keys.
 
-Переключение `simulator` ↔ `yandex` меняет провайдер новых загрузок, а не переносит
-байты. Каждая запись хранит своего провайдера: ранее загруженные файлы другого
-провайдера не выдаются. Для переноса нужна отдельная процедура копирования с
-проверкой checksum и обновлением метаданных; такая миграция ещё не реализована.
+Switching `simulator` ↔ `yandex` changes the provider for new uploads without migrating existing bytes. Provider-mismatched records are unavailable. Migration would require copying bytes, verifying checksums and updating metadata; that procedure is not implemented.
 
-Для запуска без Docker необходимы PostgreSQL, Node.js 24 и ffprobe в PATH:
-`npm ci`, настройки из `.env.example`, затем `node src/server.mjs` и отдельно
-`FILES_ROLE=worker node src/server.mjs`. Переменные должны быть экспортированы
-в окружение процессов; сам Node не читает `.env` автоматически.
+Without Docker, install PostgreSQL, Node.js 24 and ffprobe on PATH. Run `npm ci`, export settings from `.env.example`, then `npm run build` and `npm start`. Start a separate worker with `FILES_ROLE=worker npm start`. Node does not automatically load `.env`.
 
-Проверки: `npm ci`, `npm test`, `npm run lint`, `npm run format:check`.
-`make test-db` проверяет настоящие insert/get/list в PostgreSQL с обязательным откатом.
-`make smoke` создаёт PNG, MP4 и произвольный файл, проверяет чтение и удаляет только их.
-В общем workspace `make files-integration-smoke` проверяет Accounts/Projects →
-Files → Reels-черновик Posts → повторное открытие и обновление → приватное чтение.
-Нужны уже подготовленные seed-аккаунт и проект; секреты читаются из локального `.env.seed`.
-Тест удаляет собственный созданный пост, но оставляет небольшой файл: прямое удаление
-Files в Timepost заблокировано до учёта ссылок. Команда не публикует пост в социальной сети.
-Доказательства проверок и границы реализации: [автономный сервис](../archive/docs/reports/2026-10-02-files-standalone.md),
-[медиа и интеграция с редактором](../archive/docs/reports/2026-10-02-files-media-integration.md).
-Поддержка видео и свежий межсервисный прогон: [отчёт по медиа](../archive/docs/reports/2026-10-02-files-media-integration.md).
+## TypeScript, architecture and documentation
+
+The API, worker, adapters, scripts, tests and UI source use TypeScript with `strict` and `noUncheckedIndexedAccess`. Build errors prevent emission. `npm run build` cleans generated `dist/`, compiles the code and copies UI assets/test fixtures. `npm start` runs `dist/src/server.js`. The multi-stage Docker build produces a runtime with production dependencies, migrations, ffmpeg and compiled API/worker/UI.
+
+```text
+src/
+  app/                         dependency composition and API/worker bootstrap
+  modules/
+    files/
+      domain/                  file model, statuses and limits
+      application/             file operations and deletion processing
+        ports/                 repository, storage, media and identity contracts
+      infrastructure/          PostgreSQL, Yandex Disk, filesystem, sharp/ffprobe
+      presentation/            HTTP handlers, DTOs and OpenAPI
+      contracts.ts             public module types
+    access/
+      application/             authorization and project-access contract
+      infrastructure/          Accounts/Projects JWT and standalone API keys
+      contracts.ts             public access types
+  shared/                      errors, guards and infrastructure contracts
+  server.ts                    stable entry point
+```
+
+`FileService` receives interfaces through constructor injection. Application errors have typed codes; the HTTP layer maps them to statuses. Media validation and UUID/checksum generation are adapters. Application byte contracts use `Uint8Array` and `AsyncIterable`, independently of sharp, PostgreSQL and HTTP `Response`. Dependencies are wired in `app/create-file-service.ts` and `app/bootstrap.ts`.
+
+Domain types live in `modules/files/domain/file.ts`, ports in `application/ports`, and HTTP DTOs in `presentation/http/file-dto.ts`. The UI reuses DTOs through `import type`. Public types are exported through the files/access `contracts.ts` files. The architecture test checks dependency direction and access through module contracts.
+
+Run `npm run typecheck`, `npm test`, `npm run lint` and `npm run format:check` for verification. `make test-db` rolls back its database changes. `make smoke` creates PNG, MP4 and generic files, verifies reads and deletes its own files.
+
+`npm run openapi:docs` / `make docs` generates `documentation/index.html` using the local Redocly development dependency. Generated `dist/` and `documentation/` are excluded from Git.
+
+In the full workspace, `make api-sync` updates contracts and consumer snapshots; `make api-check` checks code consistency and lints OpenAPI. `make api-docs` is a separate manual HTML/JSON/YAML/ZIP export to `archive/docs/`; `archive/docs/api/index.html` provides service navigation. These exports are not required at runtime and are not rebuilt by dev, seed or api-sync. Shared Redocly tooling lives in Scripts, not in the frontend. `public/index.html` is the management UI; `archive/docs/api/files.html` is an API reference. Workspace generators: [contracts](../scripts/openapi-contracts.mjs), [HTML/ZIP](../scripts/openapi-handoff.mjs).
+
+Workspace `make files-integration-smoke` checks Accounts/Projects → Files → Posts Reels draft → reopen/update → private content. It needs seeded credentials/project from local `.env.seed`, removes its own post and leaves a small file because direct Timepost deletion is blocked. It does not publish to social networks.
+
+Optional workspace verification reports: [standalone service](../archive/docs/reports/2026-10-02-files-standalone.md), [media integration](../archive/docs/reports/2026-10-02-files-media-integration.md), [architecture refactor](../archive/docs/reports/2026-10-02-files-clean-architecture.md).

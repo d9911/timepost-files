@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Timepost Files API",
-    "version": "0.1.0",
+    "version": "0.3.0",
     "description": "Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в режиме Timepost запрещено; автономный режим допускает удаление владельцем. Публичных ссылок нет. Swagger доступен только как локальный артефакт."
   },
   "servers": [
@@ -924,6 +924,7 @@
                         "provider",
                         "authMode",
                         "maxBytes",
+                        "maxVideoBytes",
                         "genericFiles",
                         "deleteEnabled"
                       ],
