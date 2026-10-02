@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
@@ -75,4 +76,19 @@ test('HTTP: фото сохраняется, читается с сессией 
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('content-type'), 'image/png');
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  const video = await readFile(new URL('./fixtures/video.mp4', import.meta.url));
+  const uploaded = await fetch(`${origin}/api/v1/files?projectId=3&fileName=clip.mp4`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4', Authorization: 'Bearer owner' },
+    body: video,
+  });
+  assert.equal(uploaded.status, 201);
+  const metadata = (await uploaded.json()).data;
+  assert.equal(metadata.durationSeconds, 0.4);
+  const playback = await fetch(`${origin}/api/v1/files/${metadata.id}/content`, {
+    headers: { Authorization: 'Bearer owner' },
+  });
+  assert.equal(playback.headers.get('content-type'), 'video/mp4');
+  assert.equal(playback.headers.get('content-disposition'), 'inline');
+  assert.deepEqual(Buffer.from(await playback.arrayBuffer()), video);
 });

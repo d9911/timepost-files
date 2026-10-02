@@ -56,7 +56,7 @@ export const fileOpenApi = {
         operationId: 'uploadPhoto',
         summary: 'Загрузить файл проекта',
         description:
-          'Сырой бинарный файл; multipart и base64 не принимаются. В режиме genericFiles=true также принимаются произвольные файлы как application/octet-stream; они скачиваются как attachment. Только активный проект и роли OWNER/ADMIN/MEMBER. Максимум 10 МиБ, 4096×4096, один кадр. MIME и размеры определяются декодированием. Неуспешная загрузка не выдаётся как готовый файл.',
+          'Сырой бинарный файл; multipart и base64 не принимаются. В режиме genericFiles=true также принимаются произвольные файлы как application/octet-stream; они скачиваются как attachment. Только активный проект и роли OWNER/ADMIN/MEMBER. Фото: максимум 10 МиБ, 4096×4096, один кадр. Видео: 100 МиБ, 4096×4096, 60 минут; MP4 H.264/AAC или WebM VP8/VP9. Контейнер, кодеки и размеры проверяет ffprobe; полного декодирования и транскодирования видео нет. Неуспешная загрузка не выдаётся как готовый файл.',
         parameters: [
           {
             name: 'fileName',
@@ -76,10 +76,14 @@ export const fileOpenApi = {
         requestBody: {
           required: true,
           content: Object.fromEntries(
-            ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'].map((mime) => [
-              mime,
-              { schema: { type: 'string', format: 'binary' } },
-            ]),
+            [
+              'image/jpeg',
+              'image/png',
+              'image/webp',
+              'video/mp4',
+              'video/webm',
+              'application/octet-stream',
+            ].map((mime) => [mime, { schema: { type: 'string', format: 'binary' } }]),
           ),
         },
         responses: { 201: metadataResponse, ...errors },
@@ -88,7 +92,7 @@ export const fileOpenApi = {
     '/api/v1/files/{id}': {
       get: {
         operationId: 'getFileMetadata',
-        summary: 'Получить метаданные доступной фотографии',
+        summary: 'Получить метаданные доступного файла',
         parameters: [idParameter],
         responses: { 200: metadataResponse, ...errors },
       },
@@ -96,18 +100,22 @@ export const fileOpenApi = {
     '/api/v1/files/{id}/content': {
       get: {
         operationId: 'getFileContent',
-        summary: 'Прочитать приватную фотографию',
+        summary: 'Прочитать приватный файл',
         description:
-          'Требуется Bearer сессия и участие в проекте. Ответ не кэшируется. В браузере нужно авторизованно получить Blob; обычный img без сессии не работает.',
+          'Требуется Bearer сессия и участие в проекте. Ответ не кэшируется. В браузере нужно авторизованно получить Blob; обычный img/video без сессии не работает. Видео выдаётся inline; Range/resumable не реализованы, клиент получает ограниченный Blob.',
         parameters: [idParameter],
         responses: {
           200: {
             description: 'Файл',
             content: Object.fromEntries(
-              ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'].map((mime) => [
-                mime,
-                { schema: { type: 'string', format: 'binary' } },
-              ]),
+              [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+                'video/mp4',
+                'video/webm',
+                'application/octet-stream',
+              ].map((mime) => [mime, { schema: { type: 'string', format: 'binary' } }]),
             ),
           },
           ...errors,
@@ -166,7 +174,14 @@ export const fileOpenApi = {
           },
           mimeType: {
             type: 'string',
-            enum: ['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'],
+            enum: [
+              'image/jpeg',
+              'image/png',
+              'image/webp',
+              'video/mp4',
+              'video/webm',
+              'application/octet-stream',
+            ],
           },
           width: { type: 'integer', nullable: true, minimum: 1, maximum: 4096 },
           height: { type: 'integer', nullable: true, minimum: 1, maximum: 4096 },
@@ -174,7 +189,8 @@ export const fileOpenApi = {
           sha256: { type: 'string', pattern: '^[a-f0-9]{64}$' },
           storageProvider: { type: 'string', enum: ['yandex', 'simulator'] },
           createdAt: { type: 'string', format: 'date-time' },
-          sizeBytes: { type: 'integer', minimum: 1, maximum: 10485760 },
+          durationSeconds: { type: 'number', minimum: 0, maximum: 3600 },
+          sizeBytes: { type: 'integer', minimum: 1, maximum: 104857600 },
         },
       },
       FileError: {
@@ -200,6 +216,8 @@ export const fileOpenApi = {
                   'AUTH_DEPENDENCY_UNAVAILABLE',
                   'FILE_TOO_LARGE',
                   'INVALID_IMAGE',
+                  'INVALID_VIDEO',
+                  'VIDEO_PROCESSOR_UNAVAILABLE',
                   'FILE_NOT_FOUND',
                   'FILE_FORBIDDEN',
                   'FILE_DELETING',
@@ -322,6 +340,7 @@ fileOpenApi.paths['/api/v1/storage'] = {
                     provider: { type: 'string', enum: ['yandex', 'simulator'] },
                     authMode: { type: 'string', enum: ['timepost', 'api-key'] },
                     maxBytes: { type: 'integer', enum: [10485760] },
+                    maxVideoBytes: { type: 'integer', enum: [104857600] },
                     genericFiles: { type: 'boolean' },
                     deleteEnabled: { type: 'boolean' },
                   },

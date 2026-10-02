@@ -3,8 +3,13 @@ import { createHash, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
 import { FileError } from './errors.mjs';
+import { inspectVideo } from './video.mjs';
 
 export const maxBytes = 10 * 1024 * 1024;
+export const maxVideoBytes = 100 * 1024 * 1024;
+export function uploadLimit(mimeType) {
+  return ['video/mp4', 'video/webm'].includes(mimeType) ? maxVideoBytes : maxBytes;
+}
 const formats = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -17,6 +22,7 @@ export function publicMetadata(file, prefix = '/api/files-service') {
     sizeBytes: file.sizeBytes,
     width: file.width,
     height: file.height,
+    ...(file.durationSeconds != null ? { durationSeconds: file.durationSeconds } : {}),
     url: `${prefix}/api/v1/files/${file.id}/content`,
     ...(file.fileName ? { fileName: file.fileName } : {}),
     ...(file.sha256 ? { sha256: file.sha256 } : {}),
@@ -37,8 +43,8 @@ export class FileService {
     if (!/^\d+$/.test(projectId ?? ''))
       throw new FileError(400, 'INVALID_PROJECT', 'Требуется идентификатор проекта');
     await this.authorizeProject(ownerId, projectId, true);
-    if (!bytes.length || bytes.length > maxBytes)
-      throw new FileError(413, 'FILE_TOO_LARGE', 'Максимальный размер фотографии — 10 МиБ');
+    if (!bytes.length || bytes.length > uploadLimit(mimeType))
+      throw new FileError(413, 'FILE_TOO_LARGE', 'Лимит файла: фото 10 МиБ, видео 100 МиБ');
     if (
       typeof fileName !== 'string' ||
       !fileName.trim() ||
@@ -48,8 +54,10 @@ export class FileService {
       throw new FileError(400, 'INVALID_FILE_NAME', 'Неверное имя файла');
     let metadata;
     const imageType = ['image/jpeg', 'image/png', 'image/webp'].includes(mimeType);
-    if (!imageType && !this.options.genericFiles)
-      throw new FileError(415, 'INVALID_IMAGE', 'Разрешены только фотографии');
+    const videoType = ['video/mp4', 'video/webm'].includes(mimeType);
+    if (!imageType && !videoType && !this.options.genericFiles)
+      throw new FileError(415, 'INVALID_IMAGE', 'Разрешены JPEG, PNG, WebP, MP4 и WebM');
+    if (videoType) metadata = await inspectVideo(bytes, mimeType);
     if (imageType) {
       try {
         const image = sharp(bytes, {
@@ -80,10 +88,15 @@ export class FileService {
       id: randomUUID(),
       ownerId,
       projectId,
-      mimeType: imageType ? formats[metadata.format] : 'application/octet-stream',
+      mimeType: imageType
+        ? formats[metadata.format]
+        : videoType
+          ? mimeType
+          : 'application/octet-stream',
       sizeBytes: bytes.length,
       width: metadata?.width ?? null,
       height: metadata?.height ?? null,
+      durationSeconds: metadata?.durationSeconds ?? null,
       fileName,
       sha256: createHash('sha256').update(bytes).digest('hex'),
       provider: this.storage.provider ?? 'yandex',

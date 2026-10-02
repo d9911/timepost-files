@@ -17,6 +17,8 @@ components:
                 - AUTH_DEPENDENCY_UNAVAILABLE
                 - FILE_TOO_LARGE
                 - INVALID_IMAGE
+                - INVALID_VIDEO
+                - VIDEO_PROCESSOR_UNAVAILABLE
                 - FILE_NOT_FOUND
                 - FILE_FORBIDDEN
                 - FILE_DELETING
@@ -48,6 +50,10 @@ components:
         createdAt:
           format: date-time
           type: string
+        durationSeconds:
+          maximum: 3600
+          minimum: 0
+          type: number
         fileName:
           maxLength: 255
           type: string
@@ -67,6 +73,8 @@ components:
             - image/jpeg
             - image/png
             - image/webp
+            - video/mp4
+            - video/webm
             - application/octet-stream
           type: string
         projectId:
@@ -76,7 +84,7 @@ components:
           pattern: ^[a-f0-9]{64}$
           type: string
         sizeBytes:
-          maximum: 10485760
+          maximum: 104857600
           minimum: 1
           type: integer
         storageProvider:
@@ -236,8 +244,9 @@ paths:
       description: >-
         Сырой бинарный файл; multipart и base64 не принимаются. В режиме genericFiles=true также принимаются
         произвольные файлы как application/octet-stream; они скачиваются как attachment. Только активный проект и роли
-        OWNER/ADMIN/MEMBER. Максимум 10 МиБ, 4096×4096, один кадр. MIME и размеры определяются декодированием.
-        Неуспешная загрузка не выдаётся как готовый файл.
+        OWNER/ADMIN/MEMBER. Фото: максимум 10 МиБ, 4096×4096, один кадр. Видео: 100 МиБ, 4096×4096, 60 минут; MP4
+        H.264/AAC или WebM VP8/VP9. Контейнер, кодеки и размеры проверяет ffprobe; полного декодирования и
+        транскодирования видео нет. Неуспешная загрузка не выдаётся как готовый файл.
       operationId: uploadPhoto
       parameters:
         - description: Имя для скачивания; управляющие символы запрещены. Не используется как путь хранения.
@@ -268,6 +277,14 @@ paths:
               format: binary
               type: string
           image/webp:
+            schema:
+              format: binary
+              type: string
+          video/mp4:
+            schema:
+              format: binary
+              type: string
+          video/webm:
             schema:
               format: binary
               type: string
@@ -540,12 +557,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
-      summary: Получить метаданные доступной фотографии
+      summary: Получить метаданные доступного файла
   /api/v1/files/{id}/content:
     get:
       description: >-
         Требуется Bearer сессия и участие в проекте. Ответ не кэшируется. В браузере нужно авторизованно получить Blob;
-        обычный img без сессии не работает.
+        обычный img/video без сессии не работает. Видео выдаётся inline; Range/resumable не реализованы, клиент получает
+        ограниченный Blob.
       operationId: getFileContent
       parameters:
         - in: path
@@ -570,6 +588,14 @@ paths:
                 format: binary
                 type: string
             image/webp:
+              schema:
+                format: binary
+                type: string
+            video/mp4:
+              schema:
+                format: binary
+                type: string
+            video/webm:
               schema:
                 format: binary
                 type: string
@@ -634,7 +660,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileError'
           description: Ошибка проверки доступа, входных данных или зависимости
-      summary: Прочитать приватную фотографию
+      summary: Прочитать приватный файл
   /api/v1/files/{id}/deletion:
     get:
       description: >-
@@ -775,6 +801,10 @@ paths:
                       maxBytes:
                         enum:
                           - 10485760
+                        type: integer
+                      maxVideoBytes:
+                        enum:
+                          - 104857600
                         type: integer
                       provider:
                         enum:

@@ -2,14 +2,15 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 import { FileError } from './errors.mjs';
-import { maxBytes } from './service.mjs';
+import { maxBytes, maxVideoBytes, uploadLimit } from './service.mjs';
 
-async function readBytes(source) {
+async function readBytes(source, limit = maxBytes) {
   const chunks = [];
   let size = 0;
   for await (const chunk of source) {
     size += chunk.length;
-    if (size > maxBytes) throw new FileError(413, 'FILE_TOO_LARGE', 'Максимальный размер — 10 МиБ');
+    if (size > limit)
+      throw new FileError(413, 'FILE_TOO_LARGE', 'Превышен допустимый размер файла');
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
@@ -60,6 +61,7 @@ export function createHandler(service, authenticate, ready) {
             provider: service.storage.provider ?? 'yandex',
             authMode: service.options?.authMode ?? 'timepost',
             maxBytes,
+            maxVideoBytes,
             genericFiles: service.options?.genericFiles === true,
             deleteEnabled: service.options?.deleteEnabled === true,
           },
@@ -78,11 +80,16 @@ export function createHandler(service, authenticate, ready) {
         if (uploads >= 4) throw new FileError(429, 'UPLOAD_BUSY', 'Повторите загрузку позже');
         if (
           !service.options?.genericFiles &&
-          !['image/jpeg', 'image/png', 'image/webp'].includes(request.headers['content-type'])
+          !['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm'].includes(
+            request.headers['content-type']?.split(';')[0],
+          )
         )
           throw new FileError(415, 'INVALID_IMAGE', 'Неподдерживаемый тип фотографии');
-        if (Number(request.headers['content-length']) > maxBytes)
-          throw new FileError(413, 'FILE_TOO_LARGE', 'Максимальный размер — 10 МиБ');
+        if (
+          Number(request.headers['content-length']) >
+          uploadLimit(request.headers['content-type']?.split(';')[0])
+        )
+          throw new FileError(413, 'FILE_TOO_LARGE', 'Превышен допустимый размер файла');
         uploads++;
         try {
           return json(201, {
@@ -90,7 +97,7 @@ export function createHandler(service, authenticate, ready) {
             data: await service.upload(
               userId,
               url.searchParams.get('projectId'),
-              await readBytes(request),
+              await readBytes(request, uploadLimit(request.headers['content-type']?.split(';')[0])),
               request.headers['content-type']?.split(';')[0] ?? 'application/octet-stream',
               url.searchParams.get('fileName') ?? 'file',
             ),
@@ -109,7 +116,7 @@ export function createHandler(service, authenticate, ready) {
             data: await service.metadata(match[1], userId),
           });
         const { file, response: stored } = await service.content(match[1], userId);
-        const bytes = await readBytes(stored.body);
+        const bytes = await readBytes(stored.body, uploadLimit(file.mimeType));
         if (
           bytes.length !== file.sizeBytes ||
           (file.sha256 && createHash('sha256').update(bytes).digest('hex') !== file.sha256)
@@ -124,9 +131,10 @@ export function createHandler(service, authenticate, ready) {
           'Content-Length': bytes.length,
           'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff',
-          'Content-Disposition': file.mimeType.startsWith('image/')
-            ? 'inline'
-            : `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName ?? 'file')}`,
+          'Content-Disposition':
+            file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/')
+              ? 'inline'
+              : `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName ?? 'file')}`,
         });
         return response.end(bytes);
       }

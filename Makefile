@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 COMPOSE ?= docker compose
 .DEFAULT_GOAL := help
-.PHONY: help setup start stop ps logs test lint smoke config
+.PHONY: help setup start stop ps logs test lint smoke config test-db
 help:
 	@printf '%s\n' 'make start — автономные API, PostgreSQL и worker; симулятор по умолчанию' 'make smoke — загрузка, чтение, пагинация и удаление своего тестового файла' 'make stop — остановка с сохранением томов' 'make test — тесты Node.js' 'make lint — проверка кода'
 setup:
@@ -23,3 +23,5 @@ lint:
 	@npm run format:check
 smoke:
 	@$(COMPOSE) exec -T api node scripts/smoke.mjs
+test-db:
+	@$(COMPOSE) exec -T api node scripts/database-check.mjs

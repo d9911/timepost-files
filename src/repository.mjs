@@ -13,7 +13,11 @@ export class FileRepository {
       await client.query(
         'CREATE TABLE IF NOT EXISTS file_schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
       );
-      for (const name of ['001-files.sql', '002-object-metadata-and-jobs.sql']) {
+      for (const name of [
+        '001-files.sql',
+        '002-object-metadata-and-jobs.sql',
+        '003-video-duration.sql',
+      ]) {
         const existing = await client.query(
           'SELECT name FROM file_schema_migrations WHERE name=$1',
           [name],
@@ -34,7 +38,7 @@ export class FileRepository {
   }
   async insert(file) {
     await this.pool.query(
-      'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider,duration_seconds) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
       [
         file.id,
         file.ownerId,
@@ -47,6 +51,7 @@ export class FileRepository {
         file.fileName ?? null,
         file.sha256 ?? null,
         file.provider ?? 'yandex',
+        file.durationSeconds ?? null,
       ],
     );
   }
@@ -58,7 +63,7 @@ export class FileRepository {
   }
   async list(projectId, limit, cursor, provider) {
     const { rows } = await this.pool.query(
-      `SELECT id,project_id AS "projectId",mime_type AS "mimeType",size_bytes AS "sizeBytes",width,height,file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE project_id=$1 AND status='ready' AND provider=$4 AND ($3::uuid IS NULL OR id>$3::uuid) ORDER BY id LIMIT $2`,
+      `SELECT id,project_id AS "projectId",mime_type AS "mimeType",size_bytes AS "sizeBytes",width,height,duration_seconds AS "durationSeconds",file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE project_id=$1 AND status='ready' AND provider=$4 AND ($3::uuid IS NULL OR id>$3::uuid) ORDER BY id LIMIT $2`,
       [projectId, limit, cursor, provider],
     );
     return rows;
@@ -111,7 +116,7 @@ export class FileRepository {
   async get(id) {
     const { rows } = await this.pool.query(
       `SELECT id,owner_id AS "ownerId",project_id AS "projectId",mime_type AS "mimeType",
-      size_bytes AS "sizeBytes",width,height,status,file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE id=$1`,
+      size_bytes AS "sizeBytes",width,height,status,duration_seconds AS "durationSeconds",file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE id=$1`,
       [id],
     );
     return rows[0];

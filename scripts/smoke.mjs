@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 import sharp from 'sharp';
 
@@ -28,10 +30,34 @@ if (phase !== 'finish') {
     .png()
     .toBuffer();
   const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const { stdout: video } = await promisify(execFile)(
+    'ffmpeg',
+    [
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=green:s=64x48:r=10',
+      '-t',
+      '0.4',
+      '-c:v',
+      'libx264',
+      '-pix_fmt',
+      'yuv420p',
+      '-movflags',
+      'frag_keyframe+empty_moov',
+      '-f',
+      'mp4',
+      'pipe:1',
+    ],
+    { encoding: 'buffer', timeout: 10000, maxBuffer: 65536 },
+  );
   const ids = [];
   for (const [name, body, mime] of [
     ['photo.png', bytes, 'image/png'],
     ['note.txt', Buffer.from('Проверка файлового API'), 'text/plain'],
+    ['clip.mp4', video, 'video/mp4'],
   ]) {
     const result = await (
       await request(`/api/v1/files?projectId=${projectId}&fileName=${name}`, {
@@ -50,7 +76,22 @@ if (phase !== 'finish') {
   ).json();
   assert.equal(next.data.items.length, 1);
   assert.notEqual(next.data.items[0].id, page.data.items[0].id);
-  assert.equal(next.data.nextCursor, null);
+  assert.ok(next.data.nextCursor);
+  const last = await (
+    await request(`/api/v1/files?projectId=${projectId}&limit=1&cursor=${next.data.nextCursor}`)
+  ).json();
+  assert.equal(last.data.items.length, 1);
+  assert.equal(last.data.nextCursor, null);
+  assert.equal(
+    new Set([page.data.items[0].id, next.data.items[0].id, last.data.items[0].id]).size,
+    3,
+  );
+  const metadata = (await (await request(`/api/v1/files/${ids[2]}`)).json()).data;
+  assert.equal(metadata.mimeType, 'video/mp4');
+  assert.equal(metadata.width, 64);
+  const playback = await request(`/api/v1/files/${ids[2]}/content`);
+  assert.equal(playback.headers.get('content-disposition'), 'inline');
+  assert.deepEqual(Buffer.from(await playback.arrayBuffer()), video);
   const denied = await fetch(origin + `/api/v1/files/${ids[0]}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${process.env.FILES_READONLY_API_KEY}` },
@@ -58,7 +99,7 @@ if (phase !== 'finish') {
   assert.equal(denied.status, 403);
   await writeFile(fixturePath, JSON.stringify({ projectId, ids, sha256 }), { mode: 0o600 });
   console.log(
-    'PASS: загрузка PNG и произвольного файла, пагинация, 401 и запрет удаления readonly-ключом.',
+    'PASS: PNG, произвольный файл и настоящее MP4; приватное видео, пагинация, 401 и readonly.',
   );
 }
 if (phase !== 'prepare') {
