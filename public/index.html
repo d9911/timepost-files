@@ -1,41 +1,172 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Files — хранилище</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f4f3ed" />
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta
+      name="description"
+      content="Private file storage with Yandex Disk and local providers. TypeScript, REST API and a lightweight management UI."
+    />
+    <meta property="og:title" content="Timepost Files" />
+    <meta property="og:description" content="Private files. A clearer view." />
+    <meta property="og:image" content="/icons/social-preview.png" />
+    <title>Timepost Files — Files</title>
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Timepost Files"
+        ><span class="brand-mark" aria-hidden="true">f.</span>timepost<span class="brand-suffix"
+          >/ files</span
+        ></a
+      >
+      <span class="topbar-caption" data-i18n="tagline">Ваши файлы. Ваше хранилище.</span>
+      <div class="preferences">
+        <select id="language" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="es">ES</option></select
+        ><select id="theme" aria-label="Theme">
+          <option value="system" data-i18n="system">System</option>
+          <option value="light" data-i18n="light">Light</option>
+          <option value="dark" data-i18n="dark">Dark</option>
+        </select>
+      </div>
+      <span id="connection-state" class="connection-state">Не подключено</span>
+    </header>
+    <p
+      id="offline-notice"
+      class="offline-notice"
+      role="status"
+      data-i18n="offlineNotice"
+      hidden
+    ></p>
     <main>
-      <h1>Файловое хранилище</h1>
-      <p>
-        Ключ вводится только для текущей вкладки. Настройка провайдера выполняется на сервере в
-        .env.
-      </p>
-      <form id="connect">
-        <label>Ключ доступа<input id="key" type="password" autocomplete="off" required /></label
-        ><label>Проект<input id="project" value="1" inputmode="numeric" required /></label
-        ><button>Подключиться</button>
-      </form>
-      <p id="configuration" role="status"></p>
-      <form id="upload">
-        <label>Файл<input id="file" type="file" required /></label><button>Загрузить</button>
-      </form>
-      <p id="feedback" role="status"></p>
-      <table>
-        <thead>
-          <tr>
-            <th>Имя</th>
-            <th>Размер</th>
-            <th>Тип</th>
-            <th>Действия</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-      <button id="more" hidden>Загрузить ещё</button><button id="refresh">Обновить список</button>
+      <section class="hero" aria-labelledby="title">
+        <div class="hero-copy">
+          <span class="eyebrow">FILE STORAGE / CONTROL ROOM</span>
+          <h1 id="title">
+            <span data-i18n="heroStart">A space for</span><br /><span data-i18n="heroEnd"
+              >your </span
+            ><em data-i18n="heroEmphasis">ideas.</em>
+          </h1>
+          <p class="hero-description" data-i18n="description"></p>
+          <a class="text-link" href="#workspace"
+            ><span data-i18n="openStorage">Открыть хранилище</span>
+            <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="storage-art" aria-hidden="true">
+          <div class="art-orbit"></div>
+          <div class="storage-stack">
+            <div class="storage-layer layer-bottom"><span class="layer-light"></span></div>
+            <div class="storage-layer layer-middle"><span class="layer-light"></span></div>
+            <div class="storage-layer layer-top">
+              <span class="layer-label">FILES</span><span class="layer-light"></span>
+            </div>
+            <div class="floating-file">
+              <span class="file-fold"></span><span class="file-landscape"></span
+              ><span class="file-caption">YOUR NEXT IDEA</span>
+            </div>
+          </div>
+          <span class="art-caption">A little space. A lot of possibilities.</span>
+        </div>
+      </section>
+      <section class="workspace" id="workspace" aria-labelledby="workspace-title">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow" data-i18n="connectionSection">01 / ПОДКЛЮЧЕНИЕ</span>
+            <h2 id="workspace-title" data-i18n="workspace">Ваше пространство</h2>
+          </div>
+          <span class="privacy-note" data-i18n="privacy"
+            >Ключ хранится только в памяти вкладки</span
+          >
+        </div>
+        <form id="connect" class="connect-form">
+          <label class="key-field"
+            ><span data-i18n="key">Ключ доступа</span
+            ><input
+              id="key"
+              type="password"
+              autocomplete="off"
+              placeholder="Введите ключ сервиса"
+              required
+          /></label>
+          <label class="project-field"
+            ><span data-i18n="project">ID проекта</span
+            ><input id="project" value="1" inputmode="numeric" pattern="[0-9]+" required
+          /></label>
+          <button class="button-primary" type="submit">
+            <span data-i18n="connect">Подключиться</span> <span aria-hidden="true">↗</span>
+          </button>
+        </form>
+        <p id="configuration" class="configuration" role="status">
+          Подключитесь, чтобы увидеть провайдер и доступные файлы.
+        </p>
+      </section>
+      <section class="library" aria-labelledby="library-title">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow" data-i18n="librarySection">02 / БИБЛИОТЕКА</span>
+            <h2 id="library-title">
+              <span data-i18n="files">Files</span> <span id="file-count" class="file-count">—</span>
+            </h2>
+          </div>
+          <button id="refresh" class="button-secondary" type="button" disabled>
+            <span aria-hidden="true">↻</span> <span data-i18n="refresh">Обновить список</span>
+          </button>
+        </div>
+        <form id="upload" class="upload-form">
+          <label class="upload-zone"
+            ><span class="upload-icon" aria-hidden="true">↑</span
+            ><span
+              ><strong data-i18n="uploadTitle">Добавьте что-нибудь хорошее</strong
+              ><span class="upload-hint" data-i18n="uploadHint"
+                >Выберите файл для загрузки</span
+              ></span
+            ><span class="file-picker-label"
+              ><span data-i18n="chooseFile">Choose file</span
+              ><span id="selected-file">No file selected</span></span
+            ><input id="file" class="native-file" type="file" required disabled
+          /></label>
+          <button class="button-primary" type="submit" disabled>
+            <span data-i18n="upload">Загрузить</span> <span aria-hidden="true">↑</span>
+          </button>
+        </form>
+        <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="name">Имя файла</th>
+                <th data-i18n="size">Размер</th>
+                <th data-i18n="type">Тип</th>
+                <th data-i18n="actions">Действия</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="empty" class="empty-state">
+          <span class="empty-symbol" aria-hidden="true">▱</span
+          ><strong data-i18n="emptyTitle">Здесь начинается ваша библиотека</strong>
+          <p data-i18n="emptyIntro">Подключитесь к проекту, чтобы открыть его файлы.</p>
+        </div>
+        <button id="more" class="button-secondary load-more" type="button" hidden>
+          <span data-i18n="more">Загрузить ещё</span> <span aria-hidden="true">↓</span>
+        </button>
+      </section>
+      <footer>
+        <span>TIMEPOST FILES</span><span data-i18n="footer">Хранилище на вашей стороне.</span
+        ><span>REST API · TypeScript</span>
+      </footer>
     </main>
   </body>
 </html>

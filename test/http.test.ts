@@ -38,9 +38,14 @@ test('HTTP: фото сохраняется, читается с сессией 
     },
     download: async (id) => bytesStream(bytesById.get(id)!),
   };
-  const service = createFileService(repository, storage, async (user, project) => {
-    if (user !== '1' || project !== '3') throw new FileError('PROJECT_FORBIDDEN', 'Нет доступа');
-  });
+  const service = createFileService(
+    repository,
+    storage,
+    async (user, project) => {
+      if (user !== '1' || project !== '3') throw new FileError('PROJECT_FORBIDDEN', 'Нет доступа');
+    },
+    { genericFiles: true },
+  );
   const server = createServer(
     withRequestContext(
       createHandler(
@@ -64,6 +69,67 @@ test('HTTP: фото сохраняется, читается с сессией 
   const uiCode = await fetch(origin + '/app.js');
   assert.equal(uiCode.status, 200);
   assert.match(uiCode.headers.get('content-type') ?? '', /javascript/);
+
+  const preferences = await fetch(origin + '/preferences.js');
+  assert.equal(preferences.status, 200);
+  assert.match(preferences.headers.get('content-type') ?? '', /javascript/);
+  const manifestResponse = await fetch(origin + '/manifest.webmanifest');
+  assert.match(manifestResponse.headers.get('content-type') ?? '', /manifest/);
+  const manifest = (await manifestResponse.json()) as {
+    icons: Array<{ src: string; sizes: string; purpose: string }>;
+  };
+  assert.ok(manifest.icons.some((icon) => icon.purpose === 'maskable'));
+  for (const icon of manifest.icons) {
+    const response = await fetch(origin + icon.src);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'image/png');
+    const metadata = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
+    assert.equal(`${metadata.width}x${metadata.height}`, icon.sizes);
+  }
+  assert.equal((await fetch(origin + '/favicon.ico')).headers.get('content-type'), 'image/x-icon');
+  assert.equal(
+    (await fetch(origin + '/icons/unknown.png', { headers: { Authorization: 'Bearer owner' } }))
+      .status,
+    404,
+  );
+  assert.equal(
+    (await fetch(origin + '/.env', { headers: { Authorization: 'Bearer owner' } })).status,
+    404,
+  );
+  assert.match(ui.headers.get('content-security-policy') ?? '', /form-action 'self'/);
+
+  assert.equal(
+    (await fetch(origin + '/icons/icon-16x32.png', { headers: { Authorization: 'Bearer owner' } }))
+      .status,
+    404,
+  );
+  for (const [mime, name, content] of [
+    ['audio/mpeg', 'sound.mp3', Buffer.from('ID3audio-fixture')],
+    [
+      'image/gif',
+      'animation.gif',
+      Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
+    ],
+    [
+      'image/svg+xml',
+      'graphic.svg',
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+    ],
+  ] as const) {
+    const uploaded = await fetch(`${origin}/api/v1/files?projectId=3&fileName=${name}`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer owner', 'Content-Type': mime },
+      body: content,
+    });
+    assert.equal(uploaded.status, 201);
+    const file = (await uploaded.json()) as { data: { id: string } };
+    const downloaded = await fetch(`${origin}/api/v1/files/${file.data.id}/content`, {
+      headers: { Authorization: 'Bearer owner' },
+    });
+    assert.equal(downloaded.headers.get('content-type'), 'application/octet-stream');
+    assert.match(downloaded.headers.get('content-disposition') ?? '', /^attachment;/);
+    assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), content);
+  }
 
   const bytes = await sharp({
     create: { width: 2, height: 2, channels: 3, background: '#fff' },

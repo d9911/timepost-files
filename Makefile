@@ -38,3 +38,7 @@ docs:
 
 test-references:
 	@$(COMPOSE) exec -T api node dist/scripts/references-check.js
+
+.PHONY: icons
+icons:
+	@npm run icons:generate

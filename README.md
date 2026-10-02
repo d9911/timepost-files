@@ -2,6 +2,24 @@
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md)
 
+![Desktop storage interface](assets/screenshots/storage-desktop.png)
+
+**Private files, a clearer view.** A lightweight management UI with a CSS 3D storage illustration, subtle motion and responsive file rows. The screenshots show real local simulator uploads in a dedicated demonstration workspace; no access keys are visible. Motion respects `prefers-reduced-motion`.
+
+<details>
+<summary>Mobile storage interface</summary>
+
+<img src="assets/screenshots/storage-mobile.png" width="390" alt="Mobile storage interface" />
+
+</details>
+
+<details>
+<summary>Dark theme / Spanish</summary>
+
+![Timepost Files — dark theme](assets/screenshots/storage-dark.png)
+
+</details>
+
 A private REST file-storage service built with Node.js 24 and TypeScript. It runs an API, PostgreSQL and a deletion worker. File bytes are stored on Yandex Disk or through an explicitly selected local filesystem provider (`simulator`). The management UI uses plain TypeScript.
 
 ## Standalone quick start
@@ -148,7 +166,7 @@ Run `npm run typecheck`, `npm test`, `npm run lint` and `npm run format:check` f
 
 In the full workspace, `make api-sync` updates contracts and consumer snapshots; `make api-check` checks code consistency and lints OpenAPI. `make api-docs` is a separate manual HTML/JSON/YAML/ZIP export to `archive/docs/`; `archive/docs/api/index.html` provides service navigation. These exports are not required at runtime and are not rebuilt by dev, seed or api-sync. Shared Redocly tooling lives in Scripts, not in the frontend. `public/index.html` is the management UI; `archive/docs/api/files.html` is an API reference. Workspace generators: [contracts](../scripts/openapi-contracts.mjs), [HTML/ZIP](../scripts/openapi-handoff.mjs).
 
-Workspace `make files-integration-smoke` checks Accounts/Projects → Files → Posts Reels draft → reopen/update → private content. It needs seeded credentials/project from local `.env.seed`, removes its own post and leaves a small file because direct Timepost deletion is blocked. It does not publish to social networks.
+Workspace `make files-integration-smoke` checks Accounts/Projects → Files → Posts Reels draft → reopen/update → private content. It needs seeded credentials/project from local `.env.seed`, removes its own post and file, waits for the deletion worker and closes its test session. It does not publish to social networks.
 
 Optional workspace verification reports: [standalone service](../archive/docs/reports/2026-10-02-files-standalone.md), [media integration](../archive/docs/reports/2026-10-02-files-media-integration.md), [architecture refactor](../archive/docs/reports/2026-10-02-files-clean-architecture.md).
 
@@ -165,3 +183,15 @@ Requests return a validated `X-Request-Id` and `Server-Timing: app`; correlation
 Files uploaded before the reference-tracking migration stay protected even after their first registration, because older posts may still reference them. They require a complete verified backfill before cleanup can be enabled.
 
 Run `make test-references` after rebuilding to verify reference protection against the standalone PostgreSQL. The check creates only its own metadata, no stored bytes, and removes those rows.
+
+## Author
+
+Denis Gutsuliak · [Telegram](https://t.me/d9911/) · [Email](mailto:admin@d9911.org).
+
+The license text is available in [LICENSE](LICENSE).
+
+## UI preferences and branding
+
+The UI defaults to English and supports Russian and Spanish. Choose light, dark or system theme in the sticky header. Only these preferences are stored in local storage; access keys remain in tab memory.
+
+Run `npm run icons:generate` to rebuild PNG sizes (16–1024 px), SVG/ICO favicons, an Apple touch icon, a maskable icon, a social preview and `public/manifest.webmanifest`. Source: `assets/branding/icon.svg`; generated browser assets: `public/icons/`; TypeScript UI modules: `public/*.ts`. `npm run build` compiles the modules and copies browser assets into `dist/public/`. There is no offline service worker. See [deployment security](SECURITY.md).

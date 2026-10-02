@@ -1,3 +1,4 @@
+import { publicUiAsset } from './ui-assets.js';
 import { requestTiming } from '../../../../shared/infrastructure/request-context.js';
 import { contentRange } from './content-range.js';
 import { isRecord } from '../../../../shared/guards/is-record.js';
@@ -54,28 +55,17 @@ export function createHandler(
         await ready();
         return json(200, { status: 'ok' });
       }
-      if (
-        request.method === 'GET' &&
-        options.uiEnabled &&
-        ['/', '/app.js', '/style.css'].includes(url.pathname)
-      ) {
-        const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-        const type = (
-          {
-            'index.html': 'text/html; charset=utf-8',
-            'app.js': 'text/javascript; charset=utf-8',
-            'style.css': 'text/css; charset=utf-8',
-          } as Record<string, string>
-        )[name]!;
+      const uiAsset = options.uiEnabled ? publicUiAsset(url.pathname) : undefined;
+      if (request.method === 'GET' && uiAsset) {
         response.writeHead(200, {
           'Server-Timing': requestTiming(),
-          'Content-Type': type,
+          'Content-Type': uiAsset.contentType,
           'X-Content-Type-Options': 'nosniff',
           'Cache-Control': 'no-store',
           'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'",
         });
-        return response.end(await readFile(new URL(name, options.staticDirectory)));
+        return response.end(await readFile(new URL(uiAsset.name, options.staticDirectory)));
       }
       if (request.method === 'POST' && url.pathname === '/api/v1/internal/file-references') {
         if (!options.authenticateReferences || !options.referenceRepository)

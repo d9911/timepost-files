@@ -2,6 +2,24 @@
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md)
 
+![Interfaz de escritorio](assets/screenshots/storage-desktop.png)
+
+**Archivos privados, una vista más clara.** Una interfaz ligera con una ilustración 3D en CSS, animaciones sutiles y una lista adaptable. Las capturas muestran cargas reales en el simulador local dentro de un espacio de demostración; no muestran claves de acceso. Las animaciones respetan `prefers-reduced-motion`.
+
+<details>
+<summary>Interfaz móvil</summary>
+
+<img src="assets/screenshots/storage-mobile.png" width="390" alt="Interfaz móvil" />
+
+</details>
+
+<details>
+<summary>Tema oscuro / español</summary>
+
+![Timepost Files — dark theme](assets/screenshots/storage-dark.png)
+
+</details>
+
 Servicio privado de almacenamiento de archivos con API REST, Node.js 24 y TypeScript. Ejecuta una API, PostgreSQL y un worker de eliminación. Los bytes se guardan en Yandex Disk o mediante el proveedor local explícito `simulator`. La interfaz de gestión utiliza TypeScript sin un framework de interfaz.
 
 ## Inicio independiente
@@ -148,7 +166,7 @@ Comprobaciones: `npm run typecheck`, `npm test`, `npm run lint`, `npm run format
 
 En el workspace, `make api-sync` actualiza contratos y snapshots; `make api-check` comprueba consistencia y ejecuta el linter OpenAPI. `make api-docs` exporta manualmente HTML/JSON/YAML/ZIP a `archive/docs/`; `archive/docs/api/index.html` proporciona navegación. No son archivos necesarios para ejecutar el servicio ni se regeneran con dev, seed o api-sync. Redocly compartido pertenece a Scripts, no al frontend. `public/index.html` es la interfaz de gestión y `archive/docs/api/files.html` es la referencia API. Generadores del workspace: [contratos](../scripts/openapi-contracts.mjs), [HTML/ZIP](../scripts/openapi-handoff.mjs).
 
-`make files-integration-smoke` comprueba Accounts/Projects → Files → borrador Reels de Posts → reapertura/actualización → contenido privado. Requiere cuenta/proyecto de seed y credenciales locales de `.env.seed`. Elimina su publicación y deja un archivo pequeño porque la eliminación directa en Timepost está bloqueada. No publica en redes sociales.
+`make files-integration-smoke` comprueba Accounts/Projects → Files → borrador Reels de Posts → reapertura/actualización → contenido privado. Requiere cuenta/proyecto de seed y credenciales locales de `.env.seed`. Elimina su publicación y archivo, espera al worker y cierra su sesión de prueba. No publica en redes sociales.
 
 Informes opcionales del workspace: [servicio independiente](../archive/docs/reports/2026-10-02-files-standalone.md), [integración de medios](../archive/docs/reports/2026-10-02-files-media-integration.md), [arquitectura](../archive/docs/reports/2026-10-02-files-clean-architecture.md).
 
@@ -165,3 +183,15 @@ Las respuestas incluyen `X-Request-Id` validado y `Server-Timing: app`; la corre
 Los archivos anteriores a la migración de referencias quedan protegidos incluso después del primer registro: publicaciones antiguas pueden utilizarlos. Su limpieza requiere una migración completa y verificada de referencias.
 
 Tras recompilar, `make test-references` verifica referencias en PostgreSQL autónomo. Crea solo sus propios metadatos, sin bytes, y elimina esas filas.
+
+## Autor
+
+Denis Gutsuliak · [Telegram](https://t.me/d9911/) · [Correo](mailto:admin@d9911.org).
+
+El texto de la licencia está en [LICENSE](LICENSE).
+
+## Idiomas, temas e identidad visual
+
+La interfaz se abre en inglés y admite ruso y español. La cabecera fija ofrece temas claro, oscuro y del sistema. Solo estas preferencias se guardan en localStorage; la clave queda en la memoria de la pestaña.
+
+`npm run icons:generate` genera PNG de 16–1024 px, favicon SVG/ICO, Apple touch icon, un icono maskable, una imagen social y `public/manifest.webmanifest`. Fuente: `assets/branding/icon.svg`; recursos: `public/icons/`; módulos TypeScript: `public/*.ts`. `npm run build` compila los módulos y copia los recursos a `dist/public/`. No se incluye un service worker sin conexión. [Seguridad del despliegue](SECURITY.md).

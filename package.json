@@ -6,6 +6,23 @@
   "engines": {
     "node": ">=24"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d9911/timepost-files.git"
+  },
+  "author": {
+    "name": "Denis Gutsuliak (d9911.org)",
+    "email": "admin@d9911.org",
+    "url": "https://t.me/d9911/"
+  },
+  "contributors": [
+    {
+      "name": "Denis Gutsuliak",
+      "email": "admin@d9911.org",
+      "url": "https://t.me/d9911/"
+    }
+  ],
+  "license": "GPL-3.0-only-or-later",
   "scripts": {
     "start": "node dist/src/server.js",
     "openapi:generate": "npm run build && node dist/scripts/openapi.js",
@@ -16,7 +33,8 @@
     "format": "prettier --write src test scripts public package.json tsconfig.json eslint.config.mjs",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc && node dist/scripts/build-assets.js",
     "typecheck": "tsc --noEmit",
-    "openapi:docs": "npm run openapi:generate && redocly build-docs openapi.json --output documentation/index.html"
+    "openapi:docs": "npm run openapi:generate && redocly build-docs openapi.json --output documentation/index.html",
+    "icons:generate": "tsc && node dist/scripts/generate-icons.js && node dist/scripts/build-assets.js"
   },
   "dependencies": {
     "jsonwebtoken": "9.0.2",
@@ -34,5 +52,10 @@
     "prettier": "3.4.2",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.0"
-  }
+  },
+  "homepage": "https://github.com/d9911/timepost-files#readme",
+  "bugs": {
+    "url": "https://github.com/d9911/timepost-files/issues"
+  },
+  "description": "Private TypeScript file-storage service with Yandex Disk and local providers, PostgreSQL metadata, a deletion worker and a management UI."
 }
