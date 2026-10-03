@@ -49,7 +49,7 @@ export const fileOpenApi: OpenAPIV3.Document = {
     title: 'Timepost Files API',
     version: '0.3.0',
     description:
-      'Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.',
+      'Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.',
   },
   servers: [{ url: 'http://localhost:3050' }],
   security: [{ bearerAuth: [] }],
@@ -128,12 +128,13 @@ export const fileOpenApi: OpenAPIV3.Document = {
     '/health/ready': {
       get: {
         operationId: 'filesReady',
-        summary: 'Проверить БД и наличие настройки OAuth',
-        description: 'Не проверяет токен запросом к Яндексу.',
+        summary: 'Проверить БД и готовность выбранного хранилища',
+        description:
+          'Проверяет выбранного провайдера: для S3 — доступ к бакету и отсутствие versioning; ключи и endpoint в ответе не раскрываются.',
         security: [],
         responses: {
           200: {
-            description: 'БД доступна, OAuth настроен',
+            description: 'БД и выбранное хранилище доступны',
             content: {
               'application/json': {
                 schema: {
@@ -190,7 +191,10 @@ export const fileOpenApi: OpenAPIV3.Document = {
           height: { type: 'integer', nullable: true, minimum: 1, maximum: 4096 },
           fileName: { type: 'string', maxLength: 255 },
           sha256: { type: 'string', pattern: '^[a-f0-9]{64}$' },
-          storageProvider: { type: 'string', enum: ['yandex', 'simulator'] },
+          storageProvider: {
+            type: 'string',
+            enum: ['yandex', 'simulator', 's3', 'selectel', 'aws', 'yandex-object'],
+          },
           createdAt: { type: 'string', format: 'date-time' },
           durationSeconds: { type: 'number', minimum: 0, maximum: 3600 },
           sizeBytes: { type: 'integer', minimum: 1, maximum: 104857600 },
@@ -347,7 +351,10 @@ fileOpenApi.paths['/api/v1/storage'] = {
                     'deleteEnabled',
                   ],
                   properties: {
-                    provider: { type: 'string', enum: ['yandex', 'simulator'] },
+                    provider: {
+                      type: 'string',
+                      enum: ['yandex', 'simulator', 's3', 'selectel', 'aws', 'yandex-object'],
+                    },
                     authMode: { type: 'string', enum: ['timepost', 'api-key'] },
                     maxBytes: { type: 'integer', enum: [10485760] },
                     maxVideoBytes: { type: 'integer', enum: [104857600] },

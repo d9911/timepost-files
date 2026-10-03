@@ -94,6 +94,7 @@
             ><span data-i18n="key">Ключ доступа</span
             ><input
               id="key"
+              aria-describedby="key-help"
               type="password"
               autocomplete="off"
               placeholder="Введите ключ сервиса"
@@ -107,6 +108,10 @@
             <span data-i18n="connect">Подключиться</span> <span aria-hidden="true">↗</span>
           </button>
         </form>
+        <p id="key-help" class="configuration" data-i18n="keyHelp">
+          Run make setup in Files. Copy FILES_API_KEY from .env here; FILES_READONLY_API_KEY grants
+          read-only access. These are Files keys, not S3 credentials.
+        </p>
         <p id="configuration" class="configuration" role="status">
           Подключитесь, чтобы увидеть провайдер и доступные файлы.
         </p>
@@ -125,14 +130,41 @@
         </div>
         <form id="upload" class="upload-form">
           <label class="upload-zone"
-            ><span class="upload-icon" aria-hidden="true">↑</span
+            ><span class="upload-icon" aria-hidden="true"
+              ><svg
+                aria-hidden="true"
+                focusable="false"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8.33317 13.5802H11.6665C12.1248 13.5802 12.4998 13.2052 12.4998 12.7469V8.5802H13.8248C14.5665 8.5802 14.9415 7.6802 14.4165 7.1552L10.5915 3.3302C10.2665 3.0052 9.7415 3.0052 9.4165 3.3302L5.5915 7.1552C5.0665 7.6802 5.43317 8.5802 6.17484 8.5802H7.49984V12.7469C7.49984 13.2052 7.87484 13.5802 8.33317 13.5802ZM4.99984 15.2469H14.9998C15.4582 15.2469 15.8332 15.6219 15.8332 16.0802C15.8332 16.5385 15.4582 16.9135 14.9998 16.9135H4.99984C4.5415 16.9135 4.1665 16.5385 4.1665 16.0802C4.1665 15.6219 4.5415 15.2469 4.99984 15.2469Z"
+                  fill="currentColor"
+                />
+              </svg> </span
             ><span
               ><strong data-i18n="uploadTitle">Добавьте что-нибудь хорошее</strong
               ><span class="upload-hint" data-i18n="uploadHint"
                 >Выберите файл для загрузки</span
               ></span
             ><span class="file-picker-label"
-              ><span data-i18n="chooseFile">Choose file</span
+              ><span class="file-picker-button"
+                ><svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z" />
+                  <path d="M9 13h6m-3-3v6" /></svg
+                ><span data-i18n="chooseFile">Choose file</span></span
               ><span id="selected-file">No file selected</span></span
             ><input id="file" class="native-file" type="file" required disabled
           /></label>
@@ -163,9 +195,34 @@
           <span data-i18n="more">Загрузить ещё</span> <span aria-hidden="true">↓</span>
         </button>
       </section>
-      <footer>
-        <span>TIMEPOST FILES</span><span data-i18n="footer">Хранилище на вашей стороне.</span
-        ><span>REST API · TypeScript</span>
+      <footer class="site-footer">
+        <div class="footer-intro">
+          <span class="eyebrow">TIMEPOST / FILES</span>
+          <h2 data-i18n="footer">Storage on your side.</h2>
+          <p data-i18n="footerDescription">
+            A small service for your next big idea. Local storage and Yandex Disk, behind one API.
+          </p>
+          <div class="footer-tags">
+            <span>TypeScript</span><span>REST API</span><span>PWA</span>
+          </div>
+        </div>
+        <div class="footer-author">
+          <span class="eyebrow" data-i18n="developer">DEVELOPER</span>
+          <strong>Denis Gutsuliak</strong><a href="https://d9911.org">d9911.org ↗</a>
+          <p data-i18n="aiAssisted">Built with AI assistance, refined by the developer.</p>
+        </div>
+        <nav class="footer-links" aria-label="Contact">
+          <span class="eyebrow" data-i18n="getInTouch">GET IN TOUCH</span>
+          <a href="https://t.me/d9911/" data-i18n="authorTelegram">Author on Telegram ↗</a>
+          <a href="mailto:admin@d9911.org">Email <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/d9911/timepost-files"
+            >GitHub <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+        <div class="footer-bottom">
+          <span data-i18n="footerNote">Your files. Your infrastructure. Your choice.</span
+          ><a href="#title" data-i18n="backToTop">Back to top ↑</a>
+        </div>
       </footer>
     </main>
   </body>

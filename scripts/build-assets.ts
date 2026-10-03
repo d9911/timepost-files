@@ -18,7 +18,14 @@ const shellFiles = [
   'index.html',
   'app.js',
   'preferences.js',
+  'preference-dropdown.js',
+  'popup.js',
+  'media-helpers.js',
+  'media-preview.js',
+  'upload-name.js',
+
   'pwa.js',
+  'motion.js',
   'style.css',
   'manifest.webmanifest',
   'favicon.ico',
@@ -36,6 +43,8 @@ const hash = createHash('sha256').update(
     'timepost-files-shell-__FILES_CACHE_VERSION__',
   ),
 );
+// Заголовки безопасности HTML также входят в версию публичной оболочки.
+hash.update(await readFile(new URL('src/modules/files/presentation/http/file-handler.ts', root)));
 for (const name of shellFiles) hash.update(await readFile(new URL(`dist/public/${name}`, root)));
 await writeFile(
   workerFile,

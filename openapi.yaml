@@ -91,6 +91,10 @@ components:
           enum:
             - yandex
             - simulator
+            - s3
+            - selectel
+            - aws
+            - yandex-object
           type: string
         url:
           description: Приватный путь через same-origin proxy; не внешняя публичная ссылка.
@@ -117,10 +121,10 @@ components:
       type: http
 info:
   description: >-
-    Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь
-    удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в
-    Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger
-    доступен только как локальный артефакт.
+    Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3
+    endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost
+    (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок;
+    автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.
   title: Timepost Files API
   version: 0.3.0
 openapi: 3.0.3
@@ -1928,6 +1932,10 @@ paths:
                         enum:
                           - yandex
                           - simulator
+                          - s3
+                          - selectel
+                          - aws
+                          - yandex-object
                         type: string
                     required:
                       - provider
@@ -2119,7 +2127,9 @@ paths:
       summary: Прочитать безопасную конфигурацию хранилища
   /health/ready:
     get:
-      description: Не проверяет токен запросом к Яндексу.
+      description: >-
+        Проверяет выбранного провайдера: для S3 — доступ к бакету и отсутствие versioning; ключи и endpoint в ответе не
+        раскрываются.
       operationId: filesReady
       responses:
         '200':
@@ -2134,7 +2144,7 @@ paths:
                 required:
                   - status
                 type: object
-          description: БД доступна, OAuth настроен
+          description: БД и выбранное хранилище доступны
           headers:
             Server-Timing:
               description: Время обработки API до отправки ответа
@@ -2162,7 +2172,7 @@ paths:
               schema:
                 type: string
       security: []
-      summary: Проверить БД и наличие настройки OAuth
+      summary: Проверить БД и готовность выбранного хранилища
 security:
   - bearerAuth: []
 servers:

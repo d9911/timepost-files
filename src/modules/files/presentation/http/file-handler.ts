@@ -63,7 +63,7 @@ export function createHandler(
           'X-Content-Type-Options': 'nosniff',
           'Cache-Control': 'no-store',
           'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'",
         });
         return response.end(await readFile(new URL(uiAsset.name, options.staticDirectory)));
       }

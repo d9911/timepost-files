@@ -2,6 +2,69 @@
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md)
 
+![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
+![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![REST API](https://img.shields.io/badge/API-REST-00897B)
+![PWA](https://img.shields.io/badge/UI-PWA-5A0FC8)
+
+Private file storage · Yandex Disk, S3 & local provider · TypeScript API & management UI
+
+<details>
+<summary>Contents</summary>
+
+[S3-compatible storage](#s3-compatible-storage) · [Technology stack](#technology-stack) · [Standalone quick start](#standalone-quick-start) · [Yandex Disk configuration](#yandex-disk-configuration) · [API and lifecycle](#api-and-lifecycle) · [Timepost integration](#timepost-integration) · [Standalone API examples](#standalone-api-examples) · [Relationship to Yandex Disk](#relationship-to-yandex-disk) · [Hosting on your own server](#hosting-on-your-own-server) · [TypeScript, architecture and documentation](#typescript-architecture-and-documentation) · [References, thumbnails and byte ranges](#references-thumbnails-and-byte-ranges) · [UI preferences and branding](#ui-preferences-and-branding) · [PWA and other formats](#pwa-and-other-formats) · [Author](#author) · [License](#license)
+
+</details>
+
+## S3-compatible storage
+
+S3 means **Simple Storage Service**, not API version 3. Amazon S3 is the AWS service; Selectel and Yandex Object Storage offer compatible APIs. Yandex Disk is a separate product with an OAuth API. Files keeps `/api/v1/files` for all providers; PostgreSQL metadata, authorization, validation and deletion jobs remain in Files.
+
+| `STORAGE_PROVIDER` | Backend                                                                 |
+| ------------------ | ----------------------------------------------------------------------- |
+| `yandex`           | Existing Yandex Disk adapter                                            |
+| `simulator`        | Local filesystem                                                        |
+| `selectel`         | Selectel S3 endpoint from your account                                  |
+| `aws`              | Amazon S3; endpoint optional, region required                           |
+| `yandex-object`    | Yandex Object Storage, `https://storage.yandexcloud.net`, `ru-central1` |
+| `s3`               | Other compatible endpoint or local S3Mock                               |
+
+Set `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT` and `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` in `.env`, then run `make start`. Use the exact endpoint and region/pool supplied by the provider. `S3_SESSION_TOKEN` supports temporary credentials. AWS without explicit keys uses the SDK credential chain; Docker credentials still need to be supplied to its container. `S3_FORCE_PATH_STYLE=true` is the default; set `false` for virtual-hosted addressing. `S3_KEY_PREFIX=timepost/` namespaces objects. Never put cloud keys in browser code. HTTPS is required for cloud endpoints.
+
+Create a dedicated private bucket **without versioning or prior version history**. Readiness checks its accessibility and versioning; enabled or suspended versioning is rejected because deleting an object by key would not guarantee removal of previous versions. Credentials need HeadBucket, GetBucketVersioning, PutObject, GetObject and DeleteObject permissions. Cloud buckets are not created automatically. No silent local fallback occurs. Changing bucket, prefix or endpoint does not migrate existing files: use a separate database/instance unless performing a verified data migration.
+
+### Local S3 test environment
+
+```sh
+make start-s3
+make smoke-s3
+make logs-s3
+make stop-s3
+```
+
+Open `http://127.0.0.1:3060` (or `FILES_PORT` from `.env`). All providers use one `timepost-files-standalone` Compose project, one API, PostgreSQL and deletion worker. `make start-s3` selects the local S3 adapter in the shared `.env`, preserving Files keys, database password and port; it adds Adobe S3Mock and bucket initialization to the same project. `make start`, `stop`, `ps`, `logs` and `smoke` automatically use the current provider. The `*-s3` inspection commands are compatibility aliases, not additional installations. Existing cloud configurations are never replaced by `start-s3`.
+
+S3 credentials stay server-side. S3Mock has no published port; it is a test emulator, not production storage or proof of cloud IAM/signature enforcement. Stopping preserves volumes. To return to the filesystem simulator, set `STORAGE_PROVIDER=simulator` in `.env` and run `make start`. Files metadata remains in the shared database; lists are scoped to the selected provider. Switching providers does not copy file bytes or change their recorded provider. Never change an existing S3 bucket/endpoint/prefix without a verified migration.
+
+Earlier installations used `timepost-files-s3` on port 3061 and `.env.s3`. They are legacy deployments: stop them with `docker compose --env-file .env.s3 -p timepost-files-s3 -f compose.yaml -f compose.s3.yaml down` **without `--volumes`**. Keep their configuration and volumes for recovery; legacy data is not imported automatically. New commands never create this second project.
+
+Sources: [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html), [Selectel S3](https://docs.selectel.ru/api/object-storage-s3/), [Yandex Object Storage](https://yandex.cloud/ru/docs/storage/s3/), [Adobe S3Mock](https://github.com/adobe/S3Mock). Real cloud tests require provider credentials and have not been performed.
+
+## Technology stack
+
+| Component            | Implementation                                      |
+| -------------------- | --------------------------------------------------- |
+| Runtime              | Node.js 24, native HTTP server                      |
+| Language             | TypeScript 5.9, strict type checking                |
+| Metadata & job queue | PostgreSQL 16                                       |
+| Storage providers    | Yandex Disk / AWS SDK S3 adapter / local filesystem |
+| Media processing     | Sharp / ffprobe                                     |
+| Management UI        | TypeScript, CSS, Web Manifest & service worker      |
+| API documentation    | OpenAPI / Redocly                                   |
+| Code quality         | ESLint / Prettier / Node.js test runner             |
+
 ![Desktop storage interface](assets/screenshots/storage-desktop.png)
 
 **Private files, a clearer view.** A lightweight management UI with a CSS 3D storage illustration, subtle motion and responsive file rows. The screenshots show real local simulator uploads in a dedicated demonstration workspace; no access keys are visible. Motion respects `prefers-reduced-motion`.
@@ -20,13 +83,15 @@
 
 </details>
 
-A private REST file-storage service built with Node.js 24 and TypeScript. It runs an API, PostgreSQL and a deletion worker. File bytes are stored on Yandex Disk or through an explicitly selected local filesystem provider (`simulator`). The management UI uses plain TypeScript.
+A private REST file-storage service built with Node.js 24 and TypeScript. It runs an API, PostgreSQL and a deletion worker. File bytes are stored on Yandex Disk, S3-compatible storage or through an explicitly selected local filesystem provider (`simulator`). The management UI uses plain TypeScript.
 
 ## Standalone quick start
 
 Run `make start` from this directory. It installs build dependencies, compiles the service, creates `.env` with random service keys and a database password, builds Docker containers and waits for readiness. Existing configuration and volumes are preserved. Standalone use requires this directory, Docker Compose and Node.js 24; neighboring Timepost repositories are optional.
 
 From the Timepost workspace root, use `make files-standalone`. The fallback entry point is `make -f scripts/main/Makefile files-standalone`.
+
+To start both projects from the Timepost workspace, use `make dev-file` (local frontend development) or `make start-file` (Docker build and startup). They build and start standalone Files first, then the regular Timepost mode, and open Timepost, Admin and Files after readiness. Use `OPEN_BROWSER=false` to disable opening. Both commands also work via `make -f scripts/main/Makefile`. Existing commands keep their behavior. Standalone Files has separate data and keys; it rebuilds on command invocation, without hot reload. For a custom port use `FILES_PORT=4060 FILES_UI_URL=http://127.0.0.1:4060`. Stop standalone containers with `make -C files stop` from the workspace.
 
 Open <http://127.0.0.1:3060>, enter `FILES_API_KEY` from your local `.env` and choose a numeric workspace ID. The UI supports listing with load-more pagination, uploading, downloading and queuing deletion. The key stays in page memory. `FILES_READONLY_API_KEY` grants read-only access.
 
@@ -45,6 +110,20 @@ Standalone keys apply to the whole instance, including all workspaces; they are 
 | `make docs`                     | Generate standalone HTML API documentation            |
 
 The workspace equivalent of `make smoke` is `make files-smoke`.
+
+### Obtaining and replacing an access key
+
+Run `make setup` in `files/` to create a private `.env` on first use; existing keys are preserved. Copy `FILES_API_KEY` from that file into the UI Access key field, or use `FILES_READONLY_API_KEY` for read-only access. HTTP clients send `Authorization: Bearer <Files key>`. S3 credentials cannot authenticate to Files.
+
+Generate a new test key:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Copy the result into `FILES_API_KEY` or `FILES_READONLY_API_KEY` in `.env`, then run `make start`. Generate different values for the two roles; at least 32 characters are required. The replaced key stops working after the API is recreated. `make setup` does not rotate keys. Leave `FILES_DB_PASSWORD` unchanged.
+
+The instance accepts one owner key and one readonly key across all workspaces. Client registration and independently issued per-client keys are not implemented. Use Timepost mode with Accounts/Projects for user permissions. Keep `.env` and keys out of Git and URLs; never enter cloud credentials in the browser.
 
 ## Yandex Disk configuration
 
@@ -184,14 +263,30 @@ Files uploaded before the reference-tracking migration stay protected even after
 
 Run `make test-references` after rebuilding to verify reference protection against the standalone PostgreSQL. The check creates only its own metadata, no stored bytes, and removes those rows.
 
-## Author
-
-Denis Gutsuliak · [Telegram](https://t.me/d9911/) · [Email](mailto:admin@d9911.org).
-
-The license text is available in [LICENSE](LICENSE).
-
 ## UI preferences and branding
+
+Rows include a Preview action: authenticated raster images/GIF, video and recognized audio files open in a modal with native playback controls. Closing the backdrop, close button or Escape cancels loading, stops playback and releases the Blob URL. SVG and HTML are not rendered. Before upload, all filename pages are checked; duplicate names offer a suggested suffix or keeping the original name. This is an advisory UI check; server UUIDs prevent overwriting, including concurrent uploads. Sections appear on entry, with reduced-motion support.
 
 The UI defaults to English and supports Russian and Spanish. Choose light, dark or system theme in the sticky header. Only these preferences are stored in local storage; access keys remain in tab memory.
 
-Run `npm run icons:generate` to rebuild PNG sizes (16–1024 px), SVG/ICO favicons, an Apple touch icon, a maskable icon, a social preview and `public/manifest.webmanifest`. Source: `assets/branding/icon.svg`; generated browser assets: `public/icons/`; TypeScript UI modules: `public/*.ts`. `npm run build` compiles the modules and copies browser assets into `dist/public/`. There is no offline service worker. See [deployment security](SECURITY.md).
+Run `npm run icons:generate` to rebuild PNG sizes (16–1024 px), SVG/ICO favicons, an Apple touch icon, a maskable icon, a social preview and `public/manifest.webmanifest`. Source: `assets/branding/icon.svg`; generated browser assets: `public/icons/`; TypeScript UI modules: `public/*.ts`. `npm run build` compiles the modules and copies browser assets into `dist/public/`. A versioned service worker caches only the public UI shell; API requests and private files always require the server. See [deployment security](SECURITY.md).
+
+The file picker uses a themed SVG control with a keyboard focus outline. The sticky header hides on downward scroll and returns on upward scroll or keyboard focus. Sections appear once when entering the viewport; reduced-motion mode keeps them visible without animation. The scrollbar follows the light/dark palette (gradient in Chromium, a solid color in Firefox). The footer links to the developer and repository. Scroll work is limited to one animation frame at a time, with a passive listener and one-time intersection observation.
+
+## PWA and other formats
+
+The manifest lists every generated PNG size (16–1024 px) and the maskable icon. The browser selects an appropriate icon; listing sizes does not download them all. The service worker precaches only the public shell and its main icons. API paths, authorization headers, query strings, uploads and private content are excluded. Updates wait until the old tabs close; the new worker removes only previous Files shell caches.
+
+After the first successful online load, the interface can reopen offline. An offline notice disables server actions. There is no offline upload queue or cached file library. Deployment needs HTTPS; loopback is supported for local development. See [service worker lifecycle](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers).
+
+With `FILES_GENERIC_ENABLED=true` (standalone default), audio, animated GIF, SVG and arbitrary files retain their original bytes and names but use `application/octet-stream` and attachment download. SVG is not rendered inline. These attachments have a 10 MiB limit, no thumbnail or server-side format validation; validated JPEG/PNG/WebP and MP4/WebM remain separate (video limit 100 MiB). Accepting a file for storage does not make it publishable through a social network.
+
+## Author
+
+Denis Gutsuliak · [d9911.org](https://d9911.org).
+
+## License
+
+Read the complete terms in [LICENSE](LICENSE).
+
+[![License](https://img.shields.io/badge/license-see_LICENSE-blue)](LICENSE)

@@ -6,7 +6,14 @@ import { promisify } from 'node:util';
 
 import sharp from 'sharp';
 
-if (process.env.STORAGE_PROVIDER !== 'simulator')
+if (
+  process.env.STORAGE_PROVIDER !== 'simulator' &&
+  !(
+    process.env.STORAGE_PROVIDER === 's3' &&
+    process.env.S3_ENDPOINT === 'http://s3mock:9090' &&
+    process.env.S3_ALLOW_INSECURE_LOCAL === 'true'
+  )
+)
   throw new Error(
     'Этот автоматический smoke выполняется только в симуляторе; облачный прогон требует отдельной настройки.',
   );

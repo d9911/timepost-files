@@ -1,4 +1,4 @@
-export type StorageProvider = 'yandex' | 'simulator';
+export type StorageProvider = 'yandex' | 'simulator' | 's3' | 'selectel' | 'aws' | 'yandex-object';
 export type FileStatus = 'pending' | 'ready' | 'deleting' | 'deleted';
 export interface FileRecord {
   id: string;

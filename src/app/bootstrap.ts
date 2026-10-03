@@ -45,6 +45,12 @@ export async function startApplication(): Promise<void> {
     let iteration = 0;
     while (!stopping) {
       try {
+        // Не удаляем объекты, если настройки провайдера стали небезопасными.
+        if (!providerReady || iteration % 60 === 0) {
+          providerReady = false;
+          await storage.ready();
+          providerReady = true;
+        }
         if (iteration++ % 60 === 0) await repository.enqueueAbandoned(storage.provider);
         await processDelete(repository, storage);
         await writeFile('/tmp/files-worker-ready', 'ok');

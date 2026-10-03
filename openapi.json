@@ -3,7 +3,7 @@
   "info": {
     "title": "Timepost Files API",
     "version": "0.3.0",
-    "description": "Приватные файлы проектов. Провайдеры: Яндекс Диск и явно выбранный локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт."
+    "description": "Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт."
   },
   "servers": [
     {
@@ -1735,12 +1735,12 @@
     "/health/ready": {
       "get": {
         "operationId": "filesReady",
-        "summary": "Проверить БД и наличие настройки OAuth",
-        "description": "Не проверяет токен запросом к Яндексу.",
+        "summary": "Проверить БД и готовность выбранного хранилища",
+        "description": "Проверяет выбранного провайдера: для S3 — доступ к бакету и отсутствие versioning; ключи и endpoint в ответе не раскрываются.",
         "security": [],
         "responses": {
           "200": {
-            "description": "БД доступна, OAuth настроен",
+            "description": "БД и выбранное хранилище доступны",
             "content": {
               "application/json": {
                 "schema": {
@@ -1841,7 +1841,11 @@
                           "type": "string",
                           "enum": [
                             "yandex",
-                            "simulator"
+                            "simulator",
+                            "s3",
+                            "selectel",
+                            "aws",
+                            "yandex-object"
                           ]
                         },
                         "authMode": {
@@ -3200,7 +3204,11 @@
             "type": "string",
             "enum": [
               "yandex",
-              "simulator"
+              "simulator",
+              "s3",
+              "selectel",
+              "aws",
+              "yandex-object"
             ]
           },
           "createdAt": {

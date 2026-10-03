@@ -1,6 +1,20 @@
+import { enhancePreferenceSelect } from './preference-dropdown.js';
+
 export type Language = 'en' | 'ru' | 'es';
 export type Theme = 'light' | 'dark' | 'system';
 const en = {
+  preview: 'Preview',
+  closePopup: 'Close window',
+  previewLoading: 'Loading preview…',
+  previewUnsupported: 'Preview is unavailable for this format. You can download the file.',
+  previewFailed: 'This browser cannot preview the file.',
+  duplicateTitle: 'A file with this name exists',
+  duplicateExplanation:
+    '“{name}” already exists. Choose another name or keep both names; files have independent IDs and will not be overwritten.',
+  keepName: 'Keep original name',
+  saveAs: 'Upload with new name',
+  duplicateInvalid: 'Enter a different non-empty name.',
+
   offlineNotice:
     'Offline: the interface is available, but connecting, uploading and downloading require the server.',
   tagline: 'Your files. Your storage.',
@@ -17,6 +31,8 @@ const en = {
   workspace: 'Your workspace',
   privacy: 'Your key stays in this tab’s memory',
   key: 'Access key',
+  keyHelp:
+    'Run make setup in Files. Copy FILES_API_KEY from .env here; FILES_READONLY_API_KEY grants read-only access. These are Files keys, not S3 credentials.',
   keyPlaceholder: 'Enter your service key',
   project: 'Project ID',
   connect: 'Connect',
@@ -38,6 +54,14 @@ const en = {
   emptyConnected: 'No files yet. Choose your first file and upload it.',
   more: 'Load more',
   footer: 'Storage on your side.',
+  footerDescription:
+    'A small service for your next big idea. Local storage and Yandex Disk, behind one API.',
+  developer: 'DEVELOPER',
+  authorTelegram: 'Author on Telegram ↗',
+  aiAssisted: 'Built with AI assistance, refined by the developer.',
+  getInTouch: 'GET IN TOUCH',
+  footerNote: 'Your files. Your infrastructure. Your choice.',
+  backToTop: 'Back to top ↑',
   download: 'Download',
   remove: 'Delete',
   removeConfirm: 'Delete file “{name}”?',
@@ -47,6 +71,10 @@ const en = {
   connectionFailed: 'Connection failed. Check your key and project ID.',
   simulator: 'Local simulator — files in a Docker volume',
   yandex: 'Yandex Disk — cloud storage',
+  s3: 'S3-compatible storage',
+  selectel: 'Selectel S3',
+  aws: 'Amazon S3',
+  'yandex-object': 'Yandex Object Storage',
   limit: 'maximum {size} per file',
   selectFirst: 'Connect and choose a file first.',
   error: 'API request failed',
@@ -64,6 +92,18 @@ const en = {
 };
 export type MessageKey = keyof typeof en;
 const ru: Record<MessageKey, string> = {
+  preview: 'Предпросмотр',
+  closePopup: 'Закрыть окно',
+  previewLoading: 'Загружаем предпросмотр…',
+  previewUnsupported: 'Для этого формата предпросмотр недоступен. Файл можно скачать.',
+  previewFailed: 'Браузер не может показать этот файл.',
+  duplicateTitle: 'Файл с таким именем уже есть',
+  duplicateExplanation:
+    '«{name}» уже существует. Измените имя или сохраните прежнее: файлы имеют разные ID и не перезаписываются.',
+  keepName: 'Оставить прежнее имя',
+  saveAs: 'Загрузить с новым именем',
+  duplicateInvalid: 'Укажите другое непустое имя.',
+
   offlineNotice:
     'Нет сети: интерфейс доступен, но для подключения, загрузки и скачивания нужен сервер.',
   tagline: 'Ваши файлы. Ваше хранилище.',
@@ -80,6 +120,8 @@ const ru: Record<MessageKey, string> = {
   workspace: 'Ваше пространство',
   privacy: 'Ключ хранится только в памяти вкладки',
   key: 'Ключ доступа',
+  keyHelp:
+    'В Files выполните make setup. Вставьте сюда FILES_API_KEY из .env; FILES_READONLY_API_KEY даёт только чтение. Это ключи Files, не credentials S3.',
   keyPlaceholder: 'Введите ключ сервиса',
   project: 'ID проекта',
   connect: 'Подключиться',
@@ -101,6 +143,14 @@ const ru: Record<MessageKey, string> = {
   emptyConnected: 'Пока нет файлов. Выберите первый файл и загрузите его.',
   more: 'Загрузить ещё',
   footer: 'Хранилище на вашей стороне.',
+  footerDescription:
+    'Небольшой сервис для больших идей. Локальное хранилище и Яндекс Диск через единый API.',
+  developer: 'РАЗРАБОТЧИК',
+  authorTelegram: 'Автор в Telegram ↗',
+  aiAssisted: 'Создан с помощью AI и доработан разработчиком.',
+  getInTouch: 'НА СВЯЗИ',
+  footerNote: 'Ваши файлы. Ваша инфраструктура. Ваш выбор.',
+  backToTop: 'Наверх ↑',
   download: 'Скачать',
   remove: 'Удалить',
   removeConfirm: 'Удалить файл «{name}»?',
@@ -110,6 +160,10 @@ const ru: Record<MessageKey, string> = {
   connectionFailed: 'Подключение не выполнено. Проверьте ключ и ID проекта.',
   simulator: 'Локальный симулятор — файлы в Docker volume',
   yandex: 'Яндекс Диск — облачное хранилище',
+  s3: 'S3-совместимое хранилище',
+  selectel: 'Selectel S3',
+  aws: 'Amazon S3',
+  'yandex-object': 'Yandex Object Storage',
   limit: 'максимум {size} на файл',
   selectFirst: 'Подключитесь и выберите файл',
   error: 'Ошибка API',
@@ -126,6 +180,18 @@ const ru: Record<MessageKey, string> = {
   inUse: 'Файл используется и не может быть удалён.',
 };
 const es: Record<MessageKey, string> = {
+  preview: 'Vista previa',
+  closePopup: 'Cerrar ventana',
+  previewLoading: 'Cargando vista previa…',
+  previewUnsupported: 'Este formato no tiene vista previa. Puede descargar el archivo.',
+  previewFailed: 'El navegador no puede mostrar este archivo.',
+  duplicateTitle: 'Ya existe un archivo con este nombre',
+  duplicateExplanation:
+    '«{name}» ya existe. Cambie el nombre o conserve ambos: tienen ID distintos y no se sobrescriben.',
+  keepName: 'Conservar nombre original',
+  saveAs: 'Subir con otro nombre',
+  duplicateInvalid: 'Introduzca otro nombre no vacío.',
+
   offlineNotice:
     'Sin conexión: la interfaz está disponible, pero conectar, subir y descargar requiere el servidor.',
   tagline: 'Tus archivos. Tu almacenamiento.',
@@ -142,6 +208,8 @@ const es: Record<MessageKey, string> = {
   workspace: 'Tu espacio',
   privacy: 'La clave queda en la memoria de esta pestaña',
   key: 'Clave de acceso',
+  keyHelp:
+    'Ejecute make setup en Files. Introduzca FILES_API_KEY de .env; FILES_READONLY_API_KEY permite solo lectura. Son claves Files, no credenciales S3.',
   keyPlaceholder: 'Introduce la clave del servicio',
   project: 'ID del proyecto',
   connect: 'Conectar',
@@ -163,6 +231,14 @@ const es: Record<MessageKey, string> = {
   emptyConnected: 'Todavía no hay archivos. Elige el primero y súbelo.',
   more: 'Cargar más',
   footer: 'Almacenamiento de tu lado.',
+  footerDescription:
+    'Un pequeño servicio para tu próxima gran idea. Almacenamiento local y Yandex Disk mediante una API.',
+  developer: 'DESARROLLADOR',
+  authorTelegram: 'Autor en Telegram ↗',
+  aiAssisted: 'Creado con ayuda de IA y perfeccionado por el desarrollador.',
+  getInTouch: 'CONTACTO',
+  footerNote: 'Tus archivos. Tu infraestructura. Tu elección.',
+  backToTop: 'Volver arriba ↑',
   download: 'Descargar',
   remove: 'Eliminar',
   removeConfirm: '¿Eliminar el archivo «{name}»?',
@@ -172,6 +248,10 @@ const es: Record<MessageKey, string> = {
   connectionFailed: 'No se pudo conectar. Comprueba la clave y el ID del proyecto.',
   simulator: 'Simulador local — archivos en un volumen Docker',
   yandex: 'Yandex Disk — almacenamiento en la nube',
+  s3: 'Almacenamiento compatible con S3',
+  selectel: 'Selectel S3',
+  aws: 'Amazon S3',
+  'yandex-object': 'Yandex Object Storage',
   limit: 'máximo {size} por archivo',
   selectFirst: 'Conéctate y elige un archivo primero.',
   error: 'Error de API',
@@ -218,6 +298,7 @@ export function formatBytes(bytes: number) {
   if (bytes < 1024 ** 2) return `${locale.format(bytes / 1024)} ${t('kb')}`;
   return `${locale.format(bytes / 1024 ** 2)} ${t('mb')}`;
 }
+let syncDropdowns: Array<() => void> = [];
 function applyLanguage() {
   document.documentElement.lang = language;
   document.title = `Timepost Files — ${t('files')}`;
@@ -228,7 +309,9 @@ function applyLanguage() {
   if (key) key.placeholder = t('keyPlaceholder');
   document.querySelector('#language')?.setAttribute('aria-label', t('language'));
   document.querySelector('#theme')?.setAttribute('aria-label', t('theme'));
+  document.querySelector('.footer-links')?.setAttribute('aria-label', t('getInTouch'));
   document.querySelector<HTMLSelectElement>('#language')!.value = language;
+  syncDropdowns.forEach((sync) => sync());
 }
 const darkMode = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
@@ -237,10 +320,14 @@ function applyTheme() {
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content =
     active === 'dark' ? '#20231e' : '#f4f3ed';
   document.querySelector<HTMLSelectElement>('#theme')!.value = theme;
+  syncDropdowns.forEach((sync) => sync());
 }
 export function setupPreferences(onLanguageChange: () => void) {
   applyLanguage();
   applyTheme();
+  syncDropdowns = ['language', 'theme'].map((id) =>
+    enhancePreferenceSelect(document.querySelector<HTMLSelectElement>(`#${id}`)!),
+  );
   darkMode.addEventListener('change', applyTheme);
   document.querySelector<HTMLSelectElement>('#language')!.onchange = (event) => {
     const value = (event.target as HTMLSelectElement).value;

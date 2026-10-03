@@ -9,6 +9,6 @@ Report suspected vulnerabilities privately to **admin@d9911.org**. Include the a
 - The standalone Compose port binds to loopback. For external access, configure HTTPS through a reverse proxy and restrict API access to intended users.
 - The UI keeps the access key in tab memory. Local storage contains only language and theme preferences. Reloading clears the in-memory key.
 - UI assets use an explicit server allowlist and a same-origin Content Security Policy. Files remain behind API authorization; metadata and object bytes are separate from public icons/screenshots.
-- A web manifest and icon set do not provide offline functionality. No service worker caches authenticated API responses.
+- The service worker caches only the public UI shell and primary icons. API requests, query strings, authorization headers and private files are excluded. No offline upload queue exists. Updates wait for old tabs to close.
 
 The local simulator is intended for local development or a managed filesystem deployment. Back up metadata and objects together. Real Yandex Disk operation requires a server-side OAuth token; it is not enabled by supplying a key in the browser.

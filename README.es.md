@@ -2,6 +2,62 @@
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md)
 
+![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
+![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![REST API](https://img.shields.io/badge/API-REST-00897B)
+![PWA](https://img.shields.io/badge/UI-PWA-5A0FC8)
+
+Almacenamiento privado · Yandex Disk, S3 y proveedor local · API e interfaz en TypeScript
+
+<details>
+<summary>Contenido</summary>
+
+[Almacenamiento compatible con S3](#almacenamiento-compatible-con-s3) · [Tecnologías](#tecnologías) · [Inicio independiente](#inicio-independiente) · [Configurar Yandex Disk](#configurar-yandex-disk) · [API y ciclo de vida](#api-y-ciclo-de-vida) · [Integración con Timepost](#integración-con-timepost) · [Ejemplos de API independiente](#ejemplos-de-api-independiente) · [Relación con Yandex Disk](#relación-con-yandex-disk) · [Servidor propio](#servidor-propio) · [TypeScript, arquitectura y documentación](#typescript-arquitectura-y-documentación) · [Referencias, miniaturas y rangos](#referencias-miniaturas-y-rangos) · [Idiomas, temas e identidad visual](#idiomas-temas-e-identidad-visual) · [PWA y otros formatos](#pwa-y-otros-formatos) · [Autor](#autor) · [Licencia](#licencia)
+
+</details>
+
+## Almacenamiento compatible con S3
+
+S3 significa **Simple Storage Service**, no una versión 3 de la API. Amazon S3 es el servicio de AWS; Selectel y Yandex Object Storage ofrecen API compatibles. Yandex Disk utiliza otra API con OAuth. Files conserva `/api/v1/files`, la autorización, validación, PostgreSQL y la cola de eliminación.
+
+Proveedores: `yandex` (Yandex Disk), `simulator` (sistema de archivos), `selectel`, `aws`, `yandex-object` y `s3` (endpoint compatible o S3Mock local).
+
+Configure `STORAGE_PROVIDER`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY` en `.env`; ejecute `make start`. Use el endpoint y región/pool de su proveedor. Yandex Object Storage: `https://storage.yandexcloud.net`, `ru-central1`. AWS no requiere endpoint explícito; sin claves usa la cadena de credenciales del SDK, que debe configurarse dentro del contenedor. `S3_SESSION_TOKEN` permite credenciales temporales; `S3_FORCE_PATH_STYLE=true` es el valor predeterminado; `false` activa virtual-hosted. Prefijo: `S3_KEY_PREFIX=timepost/`. Las claves quedan en el servidor; la nube requiere HTTPS.
+
+Use un bucket privado dedicado sin versionado ni historial previo. La comprobación de disponibilidad rechaza el versionado habilitado o suspendido para evitar conservar versiones antiguas después de DELETE. Se requieren permisos HeadBucket, GetBucketVersioning, PutObject, GetObject y DeleteObject. Los buckets de la nube no se crean automáticamente. No existe fallback local silencioso. Cambiar bucket, prefijo o endpoint no migra datos: use otra base de datos/instancia o una migración verificada.
+
+### Prueba local S3
+
+```sh
+make start-s3
+make smoke-s3
+make logs-s3
+make stop-s3
+```
+
+Abra `http://127.0.0.1:3060` (o `FILES_PORT` de `.env`). Todos los proveedores utilizan un único proyecto Compose `timepost-files-standalone`, con una API, PostgreSQL y worker. `make start-s3` selecciona S3 local en el mismo `.env`, conservando las claves Files, la contraseña de la base de datos y el puerto; añade Adobe S3Mock y la inicialización del bucket al mismo proyecto. `make start`, `stop`, `ps`, `logs` y `smoke` detectan el proveedor configurado. Los comandos `*-s3` de inspección son alias compatibles. `start-s3` no sobrescribe configuraciones de nube existentes.
+
+Las credenciales S3 permanecen en el servidor. S3Mock no publica puertos y es un emulador de pruebas, no una prueba de IAM o firmas reales. La parada conserva los volúmenes. Para volver al simulador de archivos, configure `STORAGE_PROVIDER=simulator` en `.env` y ejecute `make start`. Los metadatos siguen en la misma base de datos; las listas muestran el proveedor seleccionado. Cambiar de proveedor no copia bytes ni cambia el proveedor de archivos existentes. Cambiar bucket/endpoint/prefix de S3 requiere una migración verificada.
+
+Las instalaciones anteriores usaban `timepost-files-s3`, puerto 3061 y `.env.s3`. Deténgalas con `docker compose --env-file .env.s3 -p timepost-files-s3 -f compose.yaml -f compose.s3.yaml down` **sin `--volumes`**. Conserve configuración y volúmenes para recuperación; los datos antiguos no se importan automáticamente. Los comandos nuevos no crean un segundo proyecto.
+
+Fuentes: [AWS](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html), [Selectel](https://docs.selectel.ru/api/object-storage-s3/), [Yandex Object Storage](https://yandex.cloud/ru/docs/storage/s3/), [Adobe S3Mock](https://github.com/adobe/S3Mock). No se ha probado la nube real sin credenciales.
+
+## Tecnologías
+
+| Componente                    | Implementación                                                     |
+| ----------------------------- | ------------------------------------------------------------------ |
+| Entorno de ejecución          | Node.js 24, servidor HTTP nativo                                   |
+| Lenguaje                      | TypeScript 5.9, tipado estricto                                    |
+| Metadatos y cola de tareas    | PostgreSQL 16                                                      |
+| Proveedores de almacenamiento | Yandex Disk / adaptador S3 con AWS SDK / sistema de archivos local |
+| Procesamiento multimedia      | Sharp / ffprobe                                                    |
+| Interfaz de gestión           | TypeScript, CSS, Web Manifest y service worker                     |
+| Documentación de la API       | OpenAPI / Redocly                                                  |
+| Calidad del código            | ESLint / Prettier / pruebas nativas de Node.js                     |
+
 ![Interfaz de escritorio](assets/screenshots/storage-desktop.png)
 
 **Archivos privados, una vista más clara.** Una interfaz ligera con una ilustración 3D en CSS, animaciones sutiles y una lista adaptable. Las capturas muestran cargas reales en el simulador local dentro de un espacio de demostración; no muestran claves de acceso. Las animaciones respetan `prefers-reduced-motion`.
@@ -20,13 +76,15 @@
 
 </details>
 
-Servicio privado de almacenamiento de archivos con API REST, Node.js 24 y TypeScript. Ejecuta una API, PostgreSQL y un worker de eliminación. Los bytes se guardan en Yandex Disk o mediante el proveedor local explícito `simulator`. La interfaz de gestión utiliza TypeScript sin un framework de interfaz.
+Servicio privado de almacenamiento de archivos con API REST, Node.js 24 y TypeScript. Ejecuta una API, PostgreSQL y un worker de eliminación. Los bytes se guardan en Yandex Disk, almacenamiento compatible con S3 o mediante el proveedor local explícito `simulator`. La interfaz de gestión utiliza TypeScript sin un framework de interfaz.
 
 ## Inicio independiente
 
 Ejecute `make start` desde este directorio. Instala las dependencias de compilación, compila el servicio, crea `.env` con claves aleatorias y una contraseña de base de datos, construye los contenedores Docker y espera a que estén listos. Conserva la configuración y los volúmenes existentes. Se necesitan este directorio, Docker Compose y Node.js 24; los demás repositorios de Timepost son opcionales.
 
 Desde la raíz del workspace Timepost: `make files-standalone`. Entrada alternativa: `make -f scripts/main/Makefile files-standalone`.
+
+Para iniciar ambos proyectos desde el workspace Timepost: `make dev-file` (desarrollo local del frontend) o `make start-file` (compilación e inicio en Docker). Primero compilan e inician Files independiente y después el modo normal de Timepost; abren Timepost, Admin y Files cuando están listos. `OPEN_BROWSER=false` desactiva la apertura. También funcionan mediante `make -f scripts/main/Makefile`. Files independiente conserva datos y claves separados, se recompila al ejecutar el comando y no tiene hot reload. Puerto personalizado: `FILES_PORT=4060 FILES_UI_URL=http://127.0.0.1:4060`. Para detenerlo desde el workspace: `make -C files stop`.
 
 Abra <http://127.0.0.1:3060>, introduzca `FILES_API_KEY` de su `.env` local y seleccione un ID numérico de espacio de trabajo. La interfaz permite listar con paginación incremental, subir, descargar y poner archivos en la cola de eliminación. La clave permanece en la memoria de la página. `FILES_READONLY_API_KEY` permite únicamente lectura.
 
@@ -45,6 +103,20 @@ Las claves independientes cubren toda la instancia y todos sus espacios; son cre
 | `make docs`                     | Generar documentación HTML de la API                     |
 
 El equivalente de `make smoke` en el workspace es `make files-smoke`.
+
+### Obtener y reemplazar una clave de acceso
+
+Ejecute `make setup` en `files/`: crea un `.env` privado en el primer uso y conserva las claves existentes. Introduzca `FILES_API_KEY` en el campo de acceso; `FILES_READONLY_API_KEY` permite solo lectura. Los clientes HTTP envían `Authorization: Bearer <clave Files>`. Las credenciales S3 no autentican a Files.
+
+Para generar una clave de prueba:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Copie el resultado a `FILES_API_KEY` o `FILES_READONLY_API_KEY` en `.env` y ejecute `make start`. Use claves distintas de al menos 32 caracteres. La clave reemplazada deja de funcionar tras recrear la API; `make setup` no rota claves. No cambie `FILES_DB_PASSWORD`.
+
+Solo se admiten una clave completa y una de lectura para toda la instancia. No hay registro ni claves independientes por cliente. Para permisos de usuario utilice Timepost con Accounts/Projects. No publique claves en Git o URL ni introduzca credenciales de nube en el navegador.
 
 ## Configurar Yandex Disk
 
@@ -184,14 +256,30 @@ Los archivos anteriores a la migración de referencias quedan protegidos incluso
 
 Tras recompilar, `make test-references` verifica referencias en PostgreSQL autónomo. Crea solo sus propios metadatos, sin bytes, y elimina esas filas.
 
-## Autor
-
-Denis Gutsuliak · [Telegram](https://t.me/d9911/) · [Correo](mailto:admin@d9911.org).
-
-El texto de la licencia está en [LICENSE](LICENSE).
-
 ## Idiomas, temas e identidad visual
+
+La acción Vista previa abre imágenes/GIF, vídeo y audio reconocido en un modal con controles nativos. El fondo, la cruz y Escape cancelan la carga, detienen la reproducción y liberan la URL Blob. No se muestran SVG ni HTML. Antes de subir se consultan todas las páginas de nombres; las coincidencias ofrecen un sufijo o conservar el nombre original. Es una sugerencia de interfaz: los UUID del servidor evitan sobrescrituras, incluso en cargas concurrentes. Las secciones aparecen al entrar en pantalla y respetan movimiento reducido.
 
 La interfaz se abre en inglés y admite ruso y español. La cabecera fija ofrece temas claro, oscuro y del sistema. Solo estas preferencias se guardan en localStorage; la clave queda en la memoria de la pestaña.
 
-`npm run icons:generate` genera PNG de 16–1024 px, favicon SVG/ICO, Apple touch icon, un icono maskable, una imagen social y `public/manifest.webmanifest`. Fuente: `assets/branding/icon.svg`; recursos: `public/icons/`; módulos TypeScript: `public/*.ts`. `npm run build` compila los módulos y copia los recursos a `dist/public/`. No se incluye un service worker sin conexión. [Seguridad del despliegue](SECURITY.md).
+`npm run icons:generate` genera PNG de 16–1024 px, favicon SVG/ICO, Apple touch icon, un icono maskable, una imagen social y `public/manifest.webmanifest`. Fuente: `assets/branding/icon.svg`; recursos: `public/icons/`; módulos TypeScript: `public/*.ts`. `npm run build` compila los módulos y copia los recursos a `dist/public/`. Un service worker versionado almacena solo la interfaz pública; la API y los archivos privados requieren el servidor. [Seguridad del despliegue](SECURITY.md).
+
+El selector de archivos utiliza un control SVG con enfoque visible del teclado. La cabecera fija se oculta al bajar y vuelve al subir o recibir enfoque. Las secciones aparecen una vez al entrar en pantalla; el modo de movimiento reducido las mantiene visibles sin animación. La barra de desplazamiento sigue el tema claro/oscuro (gradiente en Chromium, color sólido en Firefox). El pie incluye al desarrollador y el repositorio. El desplazamiento usa un listener pasivo, actualizaciones por fotograma y observación única de las secciones.
+
+## PWA y otros formatos
+
+El manifest enumera todos los tamaños PNG de 16–1024 px y el icono maskable. El navegador elige el tamaño apropiado; no descarga todo el conjunto. El worker almacena solo la interfaz pública y los iconos principales. Excluye API, Authorization, consultas, cargas y contenido privado. Las actualizaciones esperan al cierre de las pestañas antiguas y eliminan solo las cachés anteriores de Files.
+
+Tras la primera visita en línea, la interfaz puede abrirse sin conexión. Un aviso desactiva las operaciones del servidor. No existe una cola de cargas sin conexión ni una copia local de la biblioteca. El despliegue requiere HTTPS; loopback funciona para desarrollo. [Documentación de Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers).
+
+Con `FILES_GENERIC_ENABLED=true` (predeterminado en modo autónomo), audio, GIF animados, SVG y archivos arbitrarios conservan sus bytes y nombres, pero se descargan como adjuntos `application/octet-stream`. SVG no se ejecuta en la página. El límite es 10 MiB; no se añaden reproductores, miniaturas ni validación de estos formatos. JPEG/PNG/WebP y MP4/WebM se validan por separado; el vídeo tiene un límite de 100 MiB. Almacenar un formato no implica poder publicarlo en redes sociales.
+
+## Autor
+
+Denis Gutsuliak · [d9911.org](https://d9911.org).
+
+## Licencia
+
+Consulte las condiciones completas en [LICENSE](LICENSE).
+
+[![License](https://img.shields.io/badge/license-see_LICENSE-blue)](LICENSE)

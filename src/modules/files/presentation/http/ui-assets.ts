@@ -4,7 +4,18 @@ function asset(path: string, contentType: string, name = path.slice(1)) {
   assets.set(path, { name, contentType });
 }
 asset('/', 'text/html; charset=utf-8', 'index.html');
-for (const name of ['app.js', 'preferences.js', 'pwa.js', 'sw.js'])
+for (const name of [
+  'app.js',
+  'preferences.js',
+  'preference-dropdown.js',
+  'popup.js',
+  'media-helpers.js',
+  'media-preview.js',
+  'upload-name.js',
+  'pwa.js',
+  'motion.js',
+  'sw.js',
+])
   asset(`/${name}`, 'text/javascript; charset=utf-8');
 asset('/style.css', 'text/css; charset=utf-8');
 asset('/favicon.ico', 'image/x-icon');

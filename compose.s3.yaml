@@ -1,0 +1,25 @@
+# Локальный S3 — дополнительный адаптер того же Files, без второго API или PostgreSQL.
+services:
+  s3mock:
+    image: adobe/s3mock:5.1.0
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes: [s3-objects:/data]
+  s3-init:
+    build: .
+    command: node dist/scripts/s3-setup.js
+    environment:
+      S3_ENDPOINT: http://s3mock:9090
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-timepost-files}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Запустите make start-s3}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Запустите make start-s3}
+      S3_ALLOW_INSECURE_LOCAL: "true"
+    depends_on:
+      s3mock: {condition: service_started}
+  api:
+    depends_on:
+      s3-init: {condition: service_completed_successfully}
+volumes:
+  s3-objects:

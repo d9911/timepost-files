@@ -4,13 +4,15 @@ import type { Environment } from '../shared/infrastructure/environment.js';
 import type { StorageProvider } from '../modules/files/domain/file.js';
 
 import { createAuthorization } from '../modules/access/infrastructure/timepost-authorization.js';
+import { S3Storage, type S3Provider } from '../modules/files/infrastructure/storage/s3-storage.js';
 import { LocalStorage } from '../modules/files/infrastructure/storage/local-storage.js';
 import { YandexDiskStorage } from '../modules/files/infrastructure/storage/yandex-disk-storage.js';
 
 export function configure(environment: Environment) {
   const authMode = environment.FILES_AUTH_MODE ?? 'timepost';
   const provider = environment.STORAGE_PROVIDER ?? 'yandex';
-  if (!['yandex', 'simulator'].includes(provider)) throw new Error('Неизвестный STORAGE_PROVIDER');
+  if (!['yandex', 'simulator', 's3', 'selectel', 'aws', 'yandex-object'].includes(provider))
+    throw new Error('Неизвестный STORAGE_PROVIDER');
   if (!['timepost', 'api-key'].includes(authMode)) throw new Error('Неизвестный FILES_AUTH_MODE');
   let authorization: Authorization;
   if (authMode === 'timepost') {
@@ -32,7 +34,9 @@ export function configure(environment: Environment) {
   const storage =
     provider === 'yandex'
       ? new YandexDiskStorage(environment.YANDEX_DISK_OAUTH_TOKEN)
-      : new LocalStorage(environment.STORAGE_DIRECTORY ?? '/data/objects');
+      : provider === 'simulator'
+        ? new LocalStorage(environment.STORAGE_DIRECTORY ?? '/data/objects')
+        : new S3Storage(environment, provider as S3Provider);
   return {
     authorization,
     storage,

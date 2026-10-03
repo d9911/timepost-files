@@ -37,6 +37,7 @@
     "icons:generate": "tsc && node dist/scripts/generate-icons.js && node dist/scripts/build-assets.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1146.0",
     "jsonwebtoken": "9.0.2",
     "pg": "8.16.3",
     "sharp": "0.35.4"
@@ -57,5 +58,5 @@
   "bugs": {
     "url": "https://github.com/d9911/timepost-files/issues"
   },
-  "description": "Private TypeScript file-storage service with Yandex Disk and local providers, PostgreSQL metadata, a deletion worker and a management UI."
+  "description": "Private TypeScript file-storage service with Yandex Disk, S3-compatible and local providers, PostgreSQL metadata, a deletion worker and a management UI."
 }

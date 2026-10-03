@@ -55,7 +55,11 @@ test('HTTP: фото сохраняется, читается с сессией 
           return header === 'Bearer owner' ? '1' : '2';
         },
         async () => {},
-        { uiEnabled: true, staticDirectory: new URL('../public/', import.meta.url) },
+        {
+          uiEnabled: true,
+          genericFiles: true,
+          staticDirectory: new URL('../public/', import.meta.url),
+        },
       ),
     ),
   );
@@ -65,6 +69,7 @@ test('HTTP: фото сохраняется, читается с сессией 
   const origin = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
   const ui = await fetch(origin + '/');
   assert.equal(ui.status, 200);
+  assert.match(ui.headers.get('content-security-policy') ?? '', /media-src 'self' blob:/);
   assert.match(await ui.text(), /<script type="module" src="\/app.js"><\/script>/);
   const uiCode = await fetch(origin + '/app.js');
   assert.equal(uiCode.status, 200);

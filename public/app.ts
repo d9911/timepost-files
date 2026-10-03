@@ -1,3 +1,6 @@
+import { previewFile } from './media-preview.js';
+import { chooseUploadName } from './upload-name.js';
+import { setupMotion } from './motion.js';
 import { registerPwa } from './pwa.js';
 import { t, formatBytes, setupPreferences, type MessageKey } from './preferences.js';
 import type {
@@ -66,7 +69,14 @@ async function load(append = false) {
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
-    actions.append(download);
+    const preview = document.createElement('button');
+    preview.dataset.i18n = 'preview';
+    preview.textContent = t('preview');
+    preview.onclick = () =>
+      void previewFile(file, async (signal) =>
+        (await request(`/api/v1/files/${file.id}/content`, { signal })).blob(),
+      );
+    actions.append(preview, download);
     if (deletion) {
       const remove = document.createElement('button');
       remove.dataset.i18n = 'remove';
@@ -100,7 +110,7 @@ function updateLabels() {
   element('connection-state').textContent = t(connectionState);
   if (capabilities)
     element('configuration').textContent =
-      `${t(capabilities.provider === 'simulator' ? 'simulator' : 'yandex')} · ${t('limit', { size: formatBytes(capabilities.maxBytes) })}`;
+      `${t(capabilities.provider)} · ${t('limit', { size: formatBytes(capabilities.maxBytes) })}`;
   else element('configuration').textContent = t('configure');
   element('file-count').setAttribute(
     'aria-label',
@@ -190,7 +200,23 @@ element('upload').onsubmit = (event) => {
   void run(async () => {
     const file = element<HTMLInputElement>('file').files?.[0];
     if (!token || !file) throw new Error(t('selectFirst'));
-    const query = new URLSearchParams({ projectId, fileName: file.name });
+    // Имена проверяются на всех страницах, а не только в видимых строках.
+    const names = new Set<string>();
+    let cursor: string | null = null;
+    do {
+      const pageQuery = new URLSearchParams({ projectId, limit: '100' });
+      if (cursor) pageQuery.set('cursor', cursor);
+      const page = (await (
+        await request(`/api/v1/files?${pageQuery}`, { signal: AbortSignal.timeout(10000) })
+      ).json()) as ApiSuccess<FilesPageDto>;
+      page.data.items.forEach((item) => {
+        if (item.fileName) names.add(item.fileName);
+      });
+      cursor = page.data.nextCursor;
+    } while (cursor);
+    const fileName = await chooseUploadName(file.name, names);
+    if (!fileName) return;
+    const query = new URLSearchParams({ projectId, fileName });
     await request(`/api/v1/files?${query}`, {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -212,6 +238,7 @@ element<HTMLInputElement>('file').onchange = () => {
 setupPreferences(updateLabels);
 updateLabels();
 
+setupMotion();
 void registerPwa();
 
 window.addEventListener('online', networkControls);
