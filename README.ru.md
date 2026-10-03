@@ -30,6 +30,8 @@ S3 означает **Simple Storage Service**, а не третью верси�
 
 ### Локальная проверка S3
 
+Yandex Object Storage поддерживает `YANDEX_IAM_TOKEN` вместо S3-ключей (не смешивать режимы). Для `yandex-object` endpoint и регион по умолчанию — `https://storage.yandexcloud.net` и `ru-central1`. IAM-токен действует не более 12 часов: получить новый токен и пересоздать API и worker до истечения; автоматического обновления нет. AWS использует SigV4. Наш `/api/v1/files` — API Timepost, а не готовая замена S3-сервера. Область совместимости и настройки: [отчёт](../archive/docs/reports/2026-10-03-files-s3-compatibility.md). [Авторизация Яндекса](https://yandex.cloud/ru/docs/storage/api-ref/authentication).
+
 ```sh
 make start-s3
 make smoke-s3

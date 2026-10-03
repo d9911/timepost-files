@@ -1,3 +1,4 @@
+import { storageAdminPaths } from './storage-admin.js';
 import type { OpenAPIV3 } from 'openapi-types';
 const errorResponse: OpenAPIV3.ResponseObject = {
   description: 'Ошибка проверки доступа, входных данных или зависимости',
@@ -41,6 +42,9 @@ export const fileOperations = [
   { method: 'get', path: '/api/v1/files/{id}/thumbnail' },
   { method: 'post', path: '/api/v1/internal/file-references' },
   { method: 'get', path: '/health/ready' },
+  ...Object.entries(storageAdminPaths).flatMap(([path, operations]) =>
+    Object.keys(operations ?? {}).map((method) => ({ method, path })),
+  ),
 ];
 
 export const fileOpenApi: OpenAPIV3.Document = {
@@ -54,6 +58,7 @@ export const fileOpenApi: OpenAPIV3.Document = {
   servers: [{ url: 'http://localhost:3050' }],
   security: [{ bearerAuth: [] }],
   paths: {
+    ...storageAdminPaths,
     '/api/v1/files': {
       post: {
         operationId: 'uploadPhoto',

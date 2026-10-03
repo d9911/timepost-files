@@ -10,6 +10,9 @@ import { processDelete } from '../modules/files/application/process-delete.js';
 import { createHandler } from '../modules/files/presentation/http/file-handler.js';
 import { PostgresFileRepository } from '../modules/files/infrastructure/persistence/postgres-file-repository.js';
 import { createFileService } from './create-file-service.js';
+import { PostgresStoragePolicies } from '../modules/files/infrastructure/persistence/postgres-storage-policies.js';
+import { StorageAdminService } from '../modules/files/application/storage-admin-service.js';
+import { storageAdminAuthorization } from '../modules/access/infrastructure/storage-admin-authorization.js';
 
 export async function startApplication(): Promise<void> {
   if (!process.env.DATABASE_URL) throw new Error('Не задан DATABASE_URL');
@@ -75,6 +78,12 @@ export async function startApplication(): Promise<void> {
           },
           {
             ...options,
+            storageAdminService: new StorageAdminService(
+              new PostgresStoragePolicies(pool),
+              storage.provider ?? 'yandex',
+            ),
+            authenticateStorageAdmin:
+              options.authMode === 'timepost' ? storageAdminAuthorization(process.env) : undefined,
             referenceRepository: repository,
             authenticateReferences:
               options.authMode === 'timepost' ? referenceAuthorization(process.env) : undefined,

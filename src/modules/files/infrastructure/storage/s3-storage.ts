@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   S3Client,
   HeadBucketCommand,
@@ -23,11 +24,25 @@ export class S3Storage implements StoragePort {
     readonly provider: S3Provider = 's3',
   ) {
     const bucket = environment.S3_BUCKET;
-    const region = environment.S3_REGION;
+    const region =
+      environment.S3_REGION || (provider === 'yandex-object' ? 'ru-central1' : undefined);
     if (!bucket || !region) throw new Error('Нужны S3_BUCKET и S3_REGION');
     if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket))
       throw new Error('Неверное имя S3_BUCKET');
-    const endpoint = environment.S3_ENDPOINT;
+    const endpoint =
+      environment.S3_ENDPOINT ||
+      (provider === 'yandex-object' ? 'https://storage.yandexcloud.net' : undefined);
+    const iamToken = environment.YANDEX_IAM_TOKEN;
+    if (iamToken && provider !== 'yandex-object')
+      throw new Error('YANDEX_IAM_TOKEN поддерживается только для yandex-object');
+    if (iamToken && /\s/.test(iamToken)) throw new Error('Неверный YANDEX_IAM_TOKEN');
+    if (
+      iamToken &&
+      (environment.S3_ACCESS_KEY_ID ||
+        environment.S3_SECRET_ACCESS_KEY ||
+        environment.S3_SESSION_TOKEN)
+    )
+      throw new Error('Выберите IAM-токен или S3-ключи, не оба режима');
     if (provider !== 'aws' && !endpoint) throw new Error('Нужен S3_ENDPOINT');
     if (endpoint) {
       const url = new URL(endpoint);
@@ -45,7 +60,7 @@ export class S3Storage implements StoragePort {
     }
     if (!!environment.S3_ACCESS_KEY_ID !== !!environment.S3_SECRET_ACCESS_KEY)
       throw new Error('Нужны оба S3-ключа');
-    if (provider !== 'aws' && !environment.S3_ACCESS_KEY_ID)
+    if (provider !== 'aws' && !environment.S3_ACCESS_KEY_ID && !iamToken)
       throw new Error('Нужны S3-ключи доступа');
     this.bucket = bucket;
     this.prefix = environment.S3_KEY_PREFIX ?? 'timepost/';
@@ -58,17 +73,28 @@ export class S3Storage implements StoragePort {
       maxAttempts: 3,
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
-      ...(environment.S3_ACCESS_KEY_ID
+      ...(iamToken
         ? {
-            credentials: {
-              accessKeyId: environment.S3_ACCESS_KEY_ID,
-              secretAccessKey: environment.S3_SECRET_ACCESS_KEY!,
-              ...(environment.S3_SESSION_TOKEN
-                ? { sessionToken: environment.S3_SESSION_TOKEN }
-                : {}),
+            // SDK requires an identity even with a custom signer; these are not cloud keys.
+            credentials: { accessKeyId: 'iam-bearer', secretAccessKey: 'unused' },
+            signer: {
+              sign: async (request) => ({
+                ...request,
+                headers: { ...request.headers, authorization: `Bearer ${iamToken}` },
+              }),
             },
           }
-        : {}),
+        : environment.S3_ACCESS_KEY_ID
+          ? {
+              credentials: {
+                accessKeyId: environment.S3_ACCESS_KEY_ID,
+                secretAccessKey: environment.S3_SECRET_ACCESS_KEY!,
+                ...(environment.S3_SESSION_TOKEN
+                  ? { sessionToken: environment.S3_SESSION_TOKEN }
+                  : {}),
+              },
+            }
+          : {}),
     });
   }
   key(id: string) {
@@ -94,6 +120,7 @@ export class S3Storage implements StoragePort {
         Key: this.key(id),
         Body: bytes,
         ContentType: mimeType,
+        ContentMD5: createHash('md5').update(bytes).digest('base64'),
         IfNoneMatch: '*',
       }),
       { abortSignal: AbortSignal.timeout(120000) },

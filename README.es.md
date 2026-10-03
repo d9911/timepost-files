@@ -30,6 +30,8 @@ Use un bucket privado dedicado sin versionado ni historial previo. La comprobaci
 
 ### Prueba local S3
 
+Yandex Object Storage admite `YANDEX_IAM_TOKEN` en lugar de claves S3 (no combinar ambos modos). Para `yandex-object`, endpoint y región predeterminados: `https://storage.yandexcloud.net` y `ru-central1`. El token dura como máximo 12 horas: reemplácelo y recree API y worker antes de su vencimiento; no hay renovación automática. AWS conserva SigV4. `/api/v1/files` es la API de Timepost, no un servidor S3 intercambiable. [Alcance y verificación](../archive/docs/reports/2026-10-03-files-s3-compatibility.md). [Autenticación Yandex](https://yandex.cloud/ru/docs/storage/api-ref/authentication).
+
 ```sh
 make start-s3
 make smoke-s3

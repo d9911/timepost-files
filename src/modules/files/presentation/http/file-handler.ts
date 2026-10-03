@@ -1,4 +1,5 @@
 import { publicUiAsset } from './ui-assets.js';
+import { storageAdminRoute } from './storage-admin-handler.js';
 import { requestTiming } from '../../../../shared/infrastructure/request-context.js';
 import { contentRange } from './content-range.js';
 import { isRecord } from '../../../../shared/guards/is-record.js';
@@ -96,6 +97,15 @@ export function createHandler(
           cleanupRemoved: body.cleanupRemoved === true,
         });
         return json(200, { success: true, data: { referenceId: body.referenceId } });
+      }
+      if (url.pathname.startsWith('/api/v1/admin/storage/')) {
+        if (!options.storageAdminService || !options.authenticateStorageAdmin)
+          throw new FileError('NOT_FOUND', 'Маршрут не найден');
+        const actor = await options.authenticateStorageAdmin(request.headers.authorization);
+        return json(200, {
+          success: true,
+          data: await storageAdminRoute(request, url, actor, options.storageAdminService),
+        });
       }
       const userId = await authenticate(request.headers.authorization);
       if (request.method === 'GET' && url.pathname === '/api/v1/storage')

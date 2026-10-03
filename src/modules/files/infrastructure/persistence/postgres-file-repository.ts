@@ -13,6 +13,7 @@ import type {
   DeleteStatus,
 } from '../../domain/file.js';
 import { readFile } from 'node:fs/promises';
+import { PostgresStoragePolicies } from './postgres-storage-policies.js';
 
 export class PostgresFileRepository implements FileRepositoryPort, DeleteRepositoryPort {
   constructor(
@@ -35,6 +36,7 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
         '003-video-duration.sql',
         '004-file-references.sql',
         '005-reference-tracking-complete.sql',
+        '006-storage-policies.sql',
       ]) {
         const existing = await client.query(
           'SELECT name FROM file_schema_migrations WHERE name=$1',
@@ -53,23 +55,53 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
     }
   }
   async insert(file: FileRecord) {
-    await this.pool.query(
-      'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider,duration_seconds,reference_tracking_complete) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true)',
-      [
-        file.id,
-        file.ownerId,
-        file.projectId,
-        file.mimeType,
-        file.sizeBytes,
-        file.width,
-        file.height,
-        'pending',
-        file.fileName ?? null,
-        file.sha256 ?? null,
-        file.provider ?? 'yandex',
-        file.durationSeconds ?? null,
-      ],
-    );
+    if (!(this.pool instanceof Pool)) throw new Error('Для загрузки требуется Pool');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [
+        `files-upload:${file.ownerId}`,
+      ]);
+      const policy = await new PostgresStoragePolicies(this.pool).policy(file.ownerId, client);
+      if (!policy.uploadsEnabled)
+        throw new FileError('FILE_FORBIDDEN', 'Загрузки пользователя отключены');
+      if (file.sizeBytes > policy.maxFileBytes)
+        throw new FileError('FILE_TOO_LARGE', 'Превышен лимит профиля хранения');
+      const usage = await client.query(
+        `SELECT COALESCE(sum(size_bytes),0)::text AS bytes, count(*) FILTER(WHERE status='pending')::int AS pending FROM stored_files WHERE owner_id=$1 AND status IN ('pending','ready','deleting')`,
+        [file.ownerId],
+      );
+      if (
+        policy.quotaBytes !== null &&
+        BigInt(usage.rows[0].bytes) + BigInt(file.sizeBytes) > BigInt(policy.quotaBytes)
+      )
+        throw new FileError('STORAGE_QUOTA_EXCEEDED', 'Недостаточно доступного места');
+      if (usage.rows[0].pending >= policy.concurrentUploads)
+        throw new FileError('UPLOAD_BUSY', 'Достигнут лимит одновременных загрузок');
+      await client.query(
+        'INSERT INTO stored_files (id,owner_id,project_id,mime_type,size_bytes,width,height,status,file_name,sha256,provider,duration_seconds,reference_tracking_complete) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true)',
+        [
+          file.id,
+          file.ownerId,
+          file.projectId,
+          file.mimeType,
+          file.sizeBytes,
+          file.width,
+          file.height,
+          'pending',
+          file.fileName ?? null,
+          file.sha256 ?? null,
+          file.provider ?? 'yandex',
+          file.durationSeconds ?? null,
+        ],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async setStatus(id: string, status: FileStatus) {
     await this.pool.query('UPDATE stored_files SET status=$2 WHERE id=$1', [id, status]);
@@ -82,7 +114,7 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
       `SELECT id,owner_id AS "ownerId",status,project_id AS "projectId",mime_type AS "mimeType",size_bytes AS "sizeBytes",width,height,duration_seconds AS "durationSeconds",file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE project_id=$1 AND status='ready' AND provider=$4 AND ($3::uuid IS NULL OR id>$3::uuid) ORDER BY id LIMIT $2`,
       [projectId, limit, cursor, provider],
     );
-    return rows;
+    return rows.map((row) => ({ ...row, sizeBytes: Number(row.sizeBytes) }));
   }
   async queueDelete(id: string, requireManaged = false) {
     if (!(this.pool instanceof Pool)) throw new Error('Для удаления требуется Pool');
@@ -214,6 +246,6 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
       size_bytes AS "sizeBytes",width,height,status,duration_seconds AS "durationSeconds",file_name AS "fileName",sha256,provider,created_at AS "createdAt" FROM stored_files WHERE id=$1`,
       [id],
     );
-    return rows[0];
+    return rows[0] ? { ...rows[0], sizeBytes: Number(rows[0].sizeBytes) } : undefined;
   }
 }

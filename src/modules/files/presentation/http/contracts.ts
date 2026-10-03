@@ -1,7 +1,10 @@
 import type { FileReferencesPort } from '../../application/ports/file-references.js';
 import type { AuthMode } from '../../../access/contracts.js';
 import type { StorageProvider } from '../../domain/file.js';
+import type { StorageAdminService } from '../../application/storage-admin-service.js';
 export interface FileHttpOptions {
+  storageAdminService?: StorageAdminService;
+  authenticateStorageAdmin?: (header: string | undefined) => Promise<string>;
   storageProvider?: StorageProvider;
   genericFiles?: boolean;
   deleteEnabled?: boolean;

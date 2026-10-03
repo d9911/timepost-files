@@ -37,6 +37,8 @@ Create a dedicated private bucket **without versioning or prior version history*
 
 ### Local S3 test environment
 
+Yandex Object Storage also supports `YANDEX_IAM_TOKEN` instead of S3 keys (do not combine them). For `yandex-object`, endpoint and region default to `https://storage.yandexcloud.net` and `ru-central1`. IAM tokens expire within 12 hours: obtain a replacement and recreate both API and worker containers before expiry; automatic token refresh is not implemented. AWS continues to use SigV4 credentials. Our `/api/v1/files` is a Timepost API, not a drop-in S3 server. Compatibility scope and configuration: [verification report](../archive/docs/reports/2026-10-03-files-s3-compatibility.md). [Yandex authentication](https://yandex.cloud/ru/docs/storage/api-ref/authentication).
+
 ```sh
 make start-s3
 make smoke-s3
