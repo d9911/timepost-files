@@ -1,3 +1,4 @@
+import { uploadFile, trustedStorageUrl } from './direct-upload.js';
 import { previewFile } from './media-preview.js';
 import { chooseUploadName } from './upload-name.js';
 import { setupMotion } from './motion.js';
@@ -61,6 +62,17 @@ async function load(append = false) {
     download.textContent = t('download');
     download.onclick = () =>
       run(async () => {
+        if (capabilities?.directUploads && file.directDownload) {
+          const value = (await (
+            await request(`/api/v1/files/${file.id}/download`)
+          ).json()) as ApiSuccess<{ url: string; expiresIn: number }>;
+          const link = document.createElement('a');
+          link.href = trustedStorageUrl(value.data.url);
+          link.download = file.fileName ?? file.id;
+          link.rel = 'noreferrer';
+          link.click();
+          return;
+        }
         const bytes = await (await request(`/api/v1/files/${file.id}/content`)).blob();
         const url = URL.createObjectURL(bytes),
           link = document.createElement('a');
@@ -110,7 +122,7 @@ function updateLabels() {
   element('connection-state').textContent = t(connectionState);
   if (capabilities)
     element('configuration').textContent =
-      `${t(capabilities.provider)} · ${t('limit', { size: formatBytes(capabilities.maxBytes) })}`;
+      `${t(capabilities.provider)} · ${t('limit', { size: capabilities.directUploads ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(capabilities.maxFileBytes / 1_000_000)} ${t('mb')}` : formatBytes(capabilities.maxBytes) })}`;
   else element('configuration').textContent = t('configure');
   element('file-count').setAttribute(
     'aria-label',
@@ -216,12 +228,7 @@ element('upload').onsubmit = (event) => {
     } while (cursor);
     const fileName = await chooseUploadName(file.name, names);
     if (!fileName) return;
-    const query = new URLSearchParams({ projectId, fileName });
-    await request(`/api/v1/files?${query}`, {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    });
+    await uploadFile(request, file, projectId, fileName);
     feedback('saved');
     element<HTMLInputElement>('file').value = '';
     element('selected-file').textContent = t('noFile');

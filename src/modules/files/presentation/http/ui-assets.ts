@@ -6,6 +6,7 @@ function asset(path: string, contentType: string, name = path.slice(1)) {
 asset('/', 'text/html; charset=utf-8', 'index.html');
 for (const name of [
   'app.js',
+  'direct-upload.js',
   'preferences.js',
   'preference-dropdown.js',
   'popup.js',

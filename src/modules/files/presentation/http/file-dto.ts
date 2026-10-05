@@ -14,6 +14,7 @@ export interface FileMetadataDto {
   sha256?: string;
   storageProvider?: StorageProvider;
   createdAt?: string;
+  directDownload?: boolean;
 }
 
 export interface FilesPageDto {
@@ -27,6 +28,10 @@ export interface StorageCapabilitiesDto {
   maxVideoBytes: number;
   genericFiles: boolean;
   deleteEnabled: boolean;
+  directUploads: boolean;
+  maxFileBytes: number;
+  multipartThreshold: number;
+  partSize: number;
 }
 export interface ApiSuccess<T> {
   success: true;

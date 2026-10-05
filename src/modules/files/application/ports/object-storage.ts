@@ -3,6 +3,6 @@ export interface StoragePort {
   readonly provider?: StorageProvider;
   ready(): Promise<void>;
   upload(id: string, bytes: Uint8Array, mimeType?: string): Promise<void>;
-  download(id: string): Promise<AsyncIterable<Uint8Array>>;
-  delete(id: string): Promise<void>;
+  download(id: string, objectKey?: string): Promise<AsyncIterable<Uint8Array>>;
+  delete(id: string, objectKey?: string): Promise<void>;
 }

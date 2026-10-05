@@ -9,7 +9,7 @@ export function configureLocalS3(source: string): string {
     (current.STORAGE_PROVIDER && !['simulator', 's3'].includes(current.STORAGE_PROVIDER))
   ) {
     throw new Error(
-      'Настроен другой провайдер. make start-s3 не изменяет облачную конфигурацию; настройте .env явно.',
+      'Настроен другой провайдер. make start-s3mock не изменяет облачную конфигурацию; настройте .env явно.',
     );
   }
   const settings: Record<string, string> = {

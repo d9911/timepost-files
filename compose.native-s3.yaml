@@ -1,0 +1,23 @@
+name: timepost-files-local-s3
+services:
+  s3:
+    build: .
+    environment:
+      FILES_ROLE: s3
+      FILES_S3_ENABLED: "true"
+      FILES_S3_PORT: "3051"
+      FILES_S3_DIRECTORY: /data/s3
+      FILES_S3_REGION: ${FILES_S3_REGION:-us-east-1}
+      FILES_S3_ACCESS_KEY_ID: ${FILES_S3_ACCESS_KEY_ID:?Run make setup-s3}
+      FILES_S3_SECRET_ACCESS_KEY: ${FILES_S3_SECRET_ACCESS_KEY:?Run make setup-s3}
+      FILES_S3_MAX_OBJECT_BYTES: ${FILES_S3_MAX_OBJECT_BYTES:-10000000000}
+      FILES_S3_CORS_ORIGINS: ${FILES_S3_CORS_ORIGINS:-}
+    ports: ["127.0.0.1:${FILES_S3_HOST_PORT:-3062}:3051"]
+    volumes: [s3-local-objects:/data/s3]
+    healthcheck:
+      test: [CMD, node, -e, "const s=require('node:net').connect(3051,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(3000,()=>process.exit(1));"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+volumes:
+  s3-local-objects:

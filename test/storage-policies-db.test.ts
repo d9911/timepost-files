@@ -81,6 +81,57 @@ test(
       assert.equal(job!.fileId, first.id);
       await files.completeDelete(job!);
       assert.equal((await files.get(first.id))!.status, 'deleted');
+      assert.equal((await policies.policy('4')).retentionEnabled, true);
+      assert.equal((await policies.policy('4')).retentionDays, 90);
+      const retained = { ...make(), ownerId: '4' };
+      const referenced = { ...make(), ownerId: '4' };
+      const legacy = { ...make(), ownerId: '4' };
+      const recent = { ...make(), ownerId: '4' };
+      const optedOut = { ...make(), ownerId: '5' };
+      for (const file of [retained, referenced, legacy, recent, optedOut]) {
+        await files.insert(file);
+        await files.setStatus(file.id, 'ready');
+      }
+      await policies.updateUser('1', '5', {
+        ...settings,
+        maxFileBytes: null,
+        quotaBytes: null,
+        concurrentUploads: null,
+        retentionEnabled: false,
+      });
+      await pool.query(
+        "UPDATE stored_files SET created_at=now()-interval '91 days' WHERE id=ANY($1::uuid[])",
+        [[retained.id, referenced.id, legacy.id, optedOut.id]],
+      );
+      await pool.query('UPDATE stored_files SET reference_tracking_complete=false WHERE id=$1', [
+        legacy.id,
+      ]);
+      await pool.query("UPDATE stored_files SET social_network='instagram' WHERE id=$1", [
+        retained.id,
+      ]);
+      await files.replaceReferences({
+        projectId: '3',
+        referenceId: 'post-retention',
+        fileIds: [referenced.id],
+        cleanupRemoved: false,
+      });
+      assert.equal(await policies.enqueueRetention('simulator'), 1);
+      assert.equal(await policies.enqueueRetention('simulator'), 0);
+      assert.equal((await files.get(retained.id))!.status, 'deleting');
+      for (const file of [referenced, legacy, recent, optedOut])
+        assert.equal((await files.get(file.id))!.status, 'ready');
+      const summary = await policies.summary('simulator');
+      assert.equal(
+        summary.bySocialNetwork.find((group) => group.socialNetwork === 'instagram')!.usedBytes,
+        '6',
+      );
+      assert.ok(summary.bySocialNetwork.some((group) => group.socialNetwork === 'unknown'));
+      const users = await policies.users('simulator', '', '4');
+      assert.equal(
+        users.items[0]!.bySocialNetwork.find((group) => group.socialNetwork === 'instagram')!
+          .fileCount,
+        1,
+      );
     } finally {
       await pool.end();
       await root.query(`DROP SCHEMA ${schema} CASCADE`);

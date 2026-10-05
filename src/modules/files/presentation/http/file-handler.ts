@@ -12,6 +12,9 @@ import type { Authorization } from '../../../access/contracts.js';
 import type { FileService } from '../../application/file-service.js';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { multipartThreshold, partSize } from '../../application/direct-upload-service.js';
 
 import { FileError } from '../../../../shared/application/file-error.js';
 import { maxBytes, maxVideoBytes, uploadLimit } from '../../domain/file-policy.js';
@@ -64,7 +67,7 @@ export function createHandler(
           'X-Content-Type-Options': 'nosniff',
           'Cache-Control': 'no-store',
           'Content-Security-Policy':
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; connect-src 'self' https://storage.yandexcloud.net https://*.storage.yandexcloud.net; manifest-src 'self'; worker-src 'self'",
         });
         return response.end(await readFile(new URL(uiAsset.name, options.staticDirectory)));
       }
@@ -116,10 +119,88 @@ export function createHandler(
             authMode: options.authMode ?? 'timepost',
             maxBytes,
             maxVideoBytes,
+            directUploads: Boolean(options.directUploads),
+            maxFileBytes:
+              options.directUploads && options.maxFileBytes
+                ? await options.maxFileBytes(userId)
+                : maxVideoBytes,
+            multipartThreshold,
+            partSize,
             genericFiles: options.genericFiles === true,
             deleteEnabled: options.deleteEnabled === true,
           },
         });
+      if (request.method === 'POST' && url.pathname.startsWith('/api/v1/media/upload/')) {
+        const direct = options.directUploads;
+        if (!direct)
+          throw new FileError('STORAGE_NOT_CONFIGURED', 'Прямая загрузка S3 не настроена');
+        let body: unknown;
+        try {
+          body = JSON.parse((await readBytes(request, 256 * 1024)).toString());
+        } catch {
+          throw new FileError('INVALID_FILE_ID', 'Неверное тело запроса');
+        }
+        if (!isRecord(body)) throw new FileError('INVALID_FILE_ID', 'Неверное тело запроса');
+        if (url.pathname === '/api/v1/media/upload/init') {
+          if (
+            typeof body.projectId !== 'string' ||
+            typeof body.fileName !== 'string' ||
+            typeof body.mimeType !== 'string' ||
+            typeof body.sizeBytes !== 'number' ||
+            (body.socialNetwork !== undefined && typeof body.socialNetwork !== 'string')
+          )
+            throw new FileError('INVALID_FILE_ID', 'Неверные параметры загрузки');
+          return json(201, {
+            success: true,
+            data: await direct.init(userId, {
+              projectId: body.projectId,
+              fileName: body.fileName,
+              mimeType: body.mimeType,
+              sizeBytes: body.sizeBytes,
+              socialNetwork: body.socialNetwork,
+            }),
+          });
+        }
+        if (typeof body.uploadId !== 'string')
+          throw new FileError('INVALID_FILE_ID', 'Требуется uploadId');
+        if (url.pathname === '/api/v1/media/upload/part') {
+          if (typeof body.partNumber !== 'number')
+            throw new FileError('INVALID_FILE_ID', 'Требуется partNumber');
+          return json(200, {
+            success: true,
+            data: await direct.part(userId, body.uploadId, body.partNumber),
+          });
+        }
+        if (url.pathname === '/api/v1/media/upload/complete') {
+          if (
+            body.parts !== undefined &&
+            (!Array.isArray(body.parts) ||
+              body.parts.length > 10000 ||
+              body.parts.some(
+                (part) =>
+                  !isRecord(part) ||
+                  typeof part.partNumber !== 'number' ||
+                  typeof part.etag !== 'string' ||
+                  part.etag.length > 200,
+              ))
+          )
+            throw new FileError('INVALID_FILE_ID', 'Неверные части загрузки');
+          return json(200, {
+            success: true,
+            data: publicMetadata(
+              await direct.complete(
+                userId,
+                body.uploadId,
+                body.parts as { partNumber: number; etag: string }[] | undefined,
+              ),
+              options.contentPrefix,
+            ),
+          });
+        }
+        if (url.pathname === '/api/v1/media/upload/cancel')
+          return json(202, { success: true, data: await direct.cancel(userId, body.uploadId) });
+        throw new FileError('NOT_FOUND', 'Маршрут не найден');
+      }
       if (request.method === 'GET' && url.pathname === '/api/v1/files') {
         const page = await service.list(
           userId,
@@ -171,10 +252,21 @@ export function createHandler(
           uploads--;
         }
       }
-      const match = /^\/api\/v1\/files\/([^/]+)(\/content|\/deletion|\/thumbnail)?$/.exec(
-        url.pathname,
-      );
+      const match =
+        /^\/api\/v1\/files\/([^/]+)(\/content|\/deletion|\/thumbnail|\/download)?$/.exec(
+          url.pathname,
+        );
       if (match && request.method === 'GET') {
+        if (match[2] === '/download') {
+          if (!options.directUploads)
+            throw new FileError('STORAGE_NOT_CONFIGURED', 'Подписанные ссылки не настроены');
+          return json(200, {
+            success: true,
+            data: await options.directUploads.downloadUrl(
+              await service.metadata(match[1]!, userId),
+            ),
+          });
+        }
         if (match[2] === '/deletion')
           return json(200, { success: true, data: await service.deleteStatus(match[1]!, userId) });
         if (!match[2])
@@ -185,6 +277,48 @@ export function createHandler(
         if (downloads >= 4) throw new FileError('UPLOAD_BUSY', 'Повторите скачивание позже');
         downloads++;
         countedDownload = true;
+        if (match[2] === '/thumbnail' && options.directUploads) {
+          const file = await service.metadata(match[1]!, userId);
+          if (file.objectKey) {
+            const thumbnail = await options.directUploads.thumbnail(file);
+            response.writeHead(200, {
+              'Content-Type': 'image/webp',
+              'Content-Length': thumbnail.length,
+              'Cache-Control': 'private, no-store',
+              'X-Content-Type-Options': 'nosniff',
+            });
+            return response.end(thumbnail);
+          }
+        }
+        if (match[2] === '/content' && options.directUploads) {
+          const file = await service.metadata(match[1]!, userId);
+          if (file.objectKey) {
+            const range = contentRange(request.headers.range, file.sizeBytes);
+            if (range === false) {
+              response.writeHead(416, { 'Content-Range': `bytes */${file.sizeBytes}` });
+              return response.end();
+            }
+            const stream = await options.directUploads.content(
+              file,
+              range ? `bytes=${range.start}-${range.end}` : undefined,
+            );
+            response.writeHead(range ? 206 : 200, {
+              'Content-Type': file.mimeType,
+              'Content-Length': range ? range.end - range.start + 1 : file.sizeBytes,
+              'Accept-Ranges': 'bytes',
+              ...(range
+                ? { 'Content-Range': `bytes ${range.start}-${range.end}/${file.sizeBytes}` }
+                : {}),
+              'Cache-Control': 'private, no-store',
+              'X-Content-Type-Options': 'nosniff',
+              'Server-Timing': requestTiming(),
+            });
+            await pipeline(Readable.from(stream), response, {
+              signal: AbortSignal.timeout(20 * 60 * 1000),
+            });
+            return;
+          }
+        }
         const { file, stream } = await service.content(match[1]!, userId);
         const bytes = await readBytes(stream, uploadLimit(file.mimeType));
         if (
@@ -236,6 +370,10 @@ export function createHandler(
       throw new FileError('NOT_FOUND', 'Маршрут не найден');
     } catch (error) {
       request.resume();
+      if (response.headersSent) {
+        response.destroy();
+        return;
+      }
       json(error instanceof FileError ? fileErrorStatus[error.code] : 503, {
         success: false,
         error: {

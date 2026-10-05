@@ -17,6 +17,7 @@ await cp(new URL('test/fixtures/', root), new URL('dist/test/fixtures/', root), 
 const shellFiles = [
   'index.html',
   'app.js',
+  'direct-upload.js',
   'preferences.js',
   'preference-dropdown.js',
   'popup.js',

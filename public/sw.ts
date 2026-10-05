@@ -17,6 +17,7 @@ const cacheName = 'timepost-files-shell-__FILES_CACHE_VERSION__';
 const shell = [
   '/',
   '/app.js',
+  '/direct-upload.js',
   '/preferences.js',
   '/preference-dropdown.js',
   '/popup.js',

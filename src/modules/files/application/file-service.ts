@@ -92,7 +92,7 @@ export class FileService {
   async content(id: string, userId: string) {
     const file = await this.accessible(id, userId);
     if (file.status !== 'ready') throw new FileError('FILE_DELETING', 'Файл удаляется');
-    return { file, stream: await this.storage.download(id) };
+    return { file, stream: await this.storage.download(id, file.objectKey ?? undefined) };
   }
   async thumbnail(bytes: Uint8Array, mimeType: string) {
     if (!mimeType.startsWith('image/') || !this.mediaInspector.thumbnail)

@@ -4,3 +4,5 @@ coverage/
 dist/
 documentation/
 .env.s3
+
+.env.native-s3

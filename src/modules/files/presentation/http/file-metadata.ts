@@ -15,5 +15,6 @@ export function publicMetadata(file: FileRecord, prefix = '/api/files-service'):
     ...(file.sha256 ? { sha256: file.sha256 } : {}),
     ...(file.provider ? { storageProvider: file.provider } : {}),
     ...(file.createdAt ? { createdAt: new Date(file.createdAt).toISOString() } : {}),
+    ...(file.objectKey && file.bucket ? { directDownload: true } : {}),
   };
 }

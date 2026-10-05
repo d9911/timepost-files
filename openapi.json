@@ -3,7 +3,7 @@
   "info": {
     "title": "Timepost Files API",
     "version": "0.3.0",
-    "description": "Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт."
+    "description": "Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Постоянных публичных ссылок нет; Yandex S3 поддерживает временные presigned PUT/GET и multipart. Swagger доступен только как локальный артефакт."
   },
   "servers": [
     {
@@ -473,10 +473,7 @@
                     "type": "boolean"
                   },
                   "retentionEnabled": {
-                    "type": "boolean",
-                    "enum": [
-                      false
-                    ]
+                    "type": "boolean"
                   }
                 }
               }
@@ -1129,10 +1126,7 @@
                     "type": "boolean"
                   },
                   "retentionEnabled": {
-                    "type": "boolean",
-                    "enum": [
-                      false
-                    ]
+                    "type": "boolean"
                   }
                 }
               }
@@ -1708,6 +1702,1475 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/upload/init": {
+      "post": {
+        "operationId": "initMediaUpload",
+        "summary": "Зарезервировать квоту и получить presigned PUT или multipart-сессию",
+        "description": "Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned URL — временное разрешение, секретный ключ браузеру не передаётся.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId",
+                  "fileName",
+                  "mimeType",
+                  "sizeBytes"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp",
+                      "video/mp4",
+                      "video/webm"
+                    ]
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000000000
+                  },
+                  "socialNetwork": {
+                    "type": "string",
+                    "enum": [
+                      "instagram"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "uploadId",
+                        "mode",
+                        "expiresAt"
+                      ],
+                      "properties": {
+                        "uploadId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "put",
+                            "multipart"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "uploadUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "partSize": {
+                          "type": "integer"
+                        },
+                        "partCount": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/upload/part": {
+      "post": {
+        "operationId": "signMediaPart",
+        "summary": "Получить presigned PUT части (16 MiB; последняя короче)",
+        "description": "Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned URL — временное разрешение, секретный ключ браузеру не передаётся.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "uploadId",
+                  "partNumber"
+                ],
+                "properties": {
+                  "uploadId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "partNumber": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "url",
+                        "headers"
+                      ],
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "headers": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/upload/complete": {
+      "post": {
+        "operationId": "completeMediaUpload",
+        "summary": "Проверить объект и перенести incoming → media",
+        "description": "Повтор после успешного завершения возвращает тот же файл. Проверяются серверные размеры/ETag всех частей, metadata и фактический формат (JPEG/PNG/WebP, MP4 H.264/AAC, WebM VP8/VP9). Проверка потока через локальный временный файл ограничена 20 минутами, одновременно максимум две проверки на процесс. SHA-256 и постоянный object_key сохраняются в БД; presigned URL в БД не сохраняется.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "uploadId"
+                ],
+                "properties": {
+                  "uploadId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "parts": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "partNumber",
+                        "etag"
+                      ],
+                      "properties": {
+                        "partNumber": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10000
+                        },
+                        "etag": {
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/upload/cancel": {
+      "post": {
+        "operationId": "cancelMediaUpload",
+        "summary": "Поставить незавершённую загрузку в очередь удаления",
+        "description": "Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned URL — временное разрешение, секретный ключ браузеру не передаётся.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "uploadId"
+                ],
+                "properties": {
+                  "uploadId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Результат",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "uploadId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "deleting"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Отказ доступа, лимита, формата или зависимости",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Проверенный идентификатор корреляции",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Server-Timing": {
+                "description": "Время обработки API до отправки ответа",
+                "schema": {
+                  "type": "string",
+                  "example": "app;dur=12.30"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{id}/download": {
+      "get": {
+        "operationId": "signMediaDownload",
+        "summary": "Получить приватную ссылку GET на 15 минут",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Подписанная ссылка после проверки доступа к проекту",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "url",
+                        "expiresIn"
+                      ],
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "expiresIn": {
+                          "type": "integer",
+                          "enum": [
+                            900
+                          ]
+                        }
+                      }
+                    }
+                  }
                 }
               }
             },
@@ -3586,6 +5049,25 @@
                         },
                         "deleteEnabled": {
                           "type": "boolean"
+                        },
+                        "directUploads": {
+                          "type": "boolean"
+                        },
+                        "maxFileBytes": {
+                          "type": "integer",
+                          "maximum": 10000000000
+                        },
+                        "multipartThreshold": {
+                          "type": "integer",
+                          "enum": [
+                            100000000
+                          ]
+                        },
+                        "partSize": {
+                          "type": "integer",
+                          "enum": [
+                            16777216
+                          ]
                         }
                       }
                     }

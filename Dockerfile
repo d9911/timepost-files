@@ -18,7 +18,7 @@ COPY --from=build /app/dist/src ./dist/src
 COPY --from=build /app/dist/scripts ./dist/scripts
 COPY --from=build /app/dist/public ./dist/public
 COPY migrations ./migrations
-RUN mkdir -p /data/objects && chown node:node /data/objects
+RUN mkdir -p /data/objects /data/s3 && chown node:node /data/objects /data/s3
 USER node
-EXPOSE 3050
+EXPOSE 3050 3051
 CMD ["node", "dist/src/server.js"]

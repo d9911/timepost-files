@@ -34,7 +34,7 @@ const settings: OpenAPIV3.SchemaObject = {
     concurrentUploads: { type: 'integer', nullable: true, minimum: 1, maximum: 32 },
     retentionDays: { type: 'integer', nullable: true, minimum: 1, maximum: 3650 },
     uploadsEnabled: { type: 'boolean' },
-    retentionEnabled: { type: 'boolean', enum: [false] },
+    retentionEnabled: { type: 'boolean' },
   },
 };
 function operation(

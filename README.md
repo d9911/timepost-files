@@ -35,24 +35,17 @@ Set `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT` and `S3_ACCESS_KEY_ID` / `S3_SECRET_
 
 Create a dedicated private bucket **without versioning or prior version history**. Readiness checks its accessibility and versioning; enabled or suspended versioning is rejected because deleting an object by key would not guarantee removal of previous versions. Credentials need HeadBucket, GetBucketVersioning, PutObject, GetObject and DeleteObject permissions. Cloud buckets are not created automatically. No silent local fallback occurs. Changing bucket, prefix or endpoint does not migrate existing files: use a separate database/instance unless performing a verified data migration.
 
-### Local S3 test environment
+### Native local S3 server
 
-Yandex Object Storage also supports `YANDEX_IAM_TOKEN` instead of S3 keys (do not combine them). For `yandex-object`, endpoint and region default to `https://storage.yandexcloud.net` and `ru-central1`. IAM tokens expire within 12 hours: obtain a replacement and recreate both API and worker containers before expiry; automatic token refresh is not implemented. AWS continues to use SigV4 credentials. Our `/api/v1/files` is a Timepost API, not a drop-in S3 server. Compatibility scope and configuration: [verification report](../archive/docs/reports/2026-10-03-files-s3-compatibility.md). [Yandex authentication](https://yandex.cloud/ru/docs/storage/api-ref/authentication).
+`make start-s3` builds and starts **Files itself as an S3 server** at `http://127.0.0.1:3062`. This mode (`FILES_ROLE=s3`) runs one API process with persistent `/data/s3` storage, without PostgreSQL, a deletion worker, S3Mock or cloud access. `make setup-s3` creates independent random credentials in the ignored `.env.native-s3` file; existing `.env` and cloud credentials are preserved. Stop with `make stop-s3`; volumes remain available for the next start. Inspect logs with `make logs-s3` and validate configuration without printing credentials with `make config-s3`.
 
-```sh
-make start-s3
-make smoke-s3
-make logs-s3
-make stop-s3
-```
+Configure a regular S3 client with endpoint `http://127.0.0.1:3062`, region `us-east-1`, path-style addressing and the `FILES_S3_ACCESS_KEY_ID` / `FILES_S3_SECRET_ACCESS_KEY` values from `.env.native-s3`. Authentication uses SigV4, including presigned requests. HTTP is intended for loopback development; deploy behind HTTPS for external access. Browser origins must be explicitly listed in `FILES_S3_CORS_ORIGINS`.
 
-Open `http://127.0.0.1:3060` (or `FILES_PORT` from `.env`). All providers use one `timepost-files-standalone` Compose project, one API, PostgreSQL and deletion worker. `make start-s3` selects the local S3 adapter in the shared `.env`, preserving Files keys, database password and port; it adds Adobe S3Mock and bucket initialization to the same project. `make start`, `stop`, `ps`, `logs` and `smoke` automatically use the current provider. The `*-s3` inspection commands are compatibility aliases, not additional installations. Existing cloud configurations are never replaced by `start-s3`.
+The implemented core covers bucket create/head/list/delete, object put/get/head/delete/copy/list and multipart initiate/upload/list/complete/abort. Object keys are UTF-8 strings up to 1024 bytes; keys never become filesystem paths. The configured default object limit is 10,000,000,000 bytes. Atomic manifests preserve committed objects when an upload fails. Use one owning process per storage directory; horizontal replicas and automatic cleanup of orphaned blobs left by a process crash are not implemented.
 
-S3 credentials stay server-side. S3Mock has no published port; it is a test emulator, not production storage or proof of cloud IAM/signature enforcement. Stopping preserves volumes. To return to the filesystem simulator, set `STORAGE_PROVIDER=simulator` in `.env` and run `make start`. Files metadata remains in the shared database; lists are scoped to the selected provider. Switching providers does not copy file bytes or change their recorded provider. Never change an existing S3 bucket/endpoint/prefix without a verified migration.
+This is a defined S3-compatible subset, not complete AWS or Yandex feature parity. IAM policies, ACLs, object versioning, lifecycle rules, server-side encryption, replication and event notifications are not implemented. The existing `/api/v1/files` REST service remains a separate mode. Native S3 stores arbitrary bytes without REST media validation, tariff policies or reference checks.
 
-Earlier installations used `timepost-files-s3` on port 3061 and `.env.s3`. They are legacy deployments: stop them with `docker compose --env-file .env.s3 -p timepost-files-s3 -f compose.yaml -f compose.s3.yaml down` **without `--volumes`**. Keep their configuration and volumes for recovery; legacy data is not imported automatically. New commands never create this second project.
-
-Sources: [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html), [Selectel S3](https://docs.selectel.ru/api/object-storage-s3/), [Yandex Object Storage](https://yandex.cloud/ru/docs/storage/s3/), [Adobe S3Mock](https://github.com/adobe/S3Mock). Real cloud tests require provider credentials and have not been performed.
+`make smoke-s3` runs isolated ordinary-client compatibility tests with temporary data. The previous Adobe emulator is available as `make start-s3mock` / `make smoke-s3mock`; it retains its existing shared `.env` configuration guard. Cloud integration adapters remain optional clients and are unrelated to the native server implementation.
 
 ## Technology stack
 
@@ -292,3 +285,39 @@ Denis Gutsuliak · [d9911.org](https://d9911.org).
 Read the complete terms in [LICENSE](LICENSE).
 
 [![License](https://img.shields.io/badge/license-see_LICENSE-blue)](LICENSE)
+
+### Yandex S3 direct media uploads
+
+With `STORAGE_PROVIDER=yandex-object` and server-side static S3 keys, the browser uses
+`POST /api/v1/media/upload/init`, a presigned `PUT`, and
+`POST /api/v1/media/upload/complete`. Initialization authorizes the project and
+reserves the declared size under the user's storage policy. Keep the returned
+`Content-Type` and `If-None-Match` headers; send a Blob of the declared size.
+No S3 secret is returned to the browser.
+
+Objects of at least 100,000,000 bytes use multipart: request each URL with
+`POST /api/v1/media/upload/part`, PUT 16 MiB chunks (last chunk may be shorter),
+and send ordered `{partNumber, etag}` entries to complete. Each URL expires after
+15 minutes; the upload session lasts at most 24 hours. The bucket's CORS must allow
+GET/PUT, the frontend origin and request headers, and expose ETag.
+
+Completion checks S3 size, metadata, part ETags and actual media content, computes
+SHA-256 using a private temporary file, then copies `incoming/{owner}/{project}/{id}/original.ext`
+to `media/{owner}/{project}/{id}/original.ext`. PostgreSQL stores bucket/object_key;
+URLs are generated on demand. Files above 5 GB use multipart copy. Temporary disk
+space must accommodate the file; verification has a 20-minute deadline and permits
+at most two concurrent checks per API process. The current media formats/codecs,
+4096×4096 dimensions and 60-minute video limit remain enforced.
+
+The default per-file policies are decimal bytes: Start 150 MB, Pro 300 MB,
+Business 10 GB. Profile and user settings are editable through storage admin;
+there is no implicit total-space quota when `quotaBytes` is null. The Files worker
+queues unreferenced managed files past their configured age (default 90 days).
+Explicit retention opt-outs and post references are preserved. This is file-age
+retention, not billing-based deletion.
+
+`GET /api/v1/files/{id}/download` authorizes project access and returns a presigned
+GET for direct-uploaded objects. The authenticated content route streams large
+files and supports Range; legacy upload/content routes remain available with their
+original smaller limits. `POST /api/v1/media/upload/cancel` queues pending uploads
+for cleanup and cannot cancel an already-ready file.

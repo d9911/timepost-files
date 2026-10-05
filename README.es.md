@@ -18,6 +18,10 @@ Almacenamiento privado · Yandex Disk, S3 y proveedor local · API e interfaz en
 
 </details>
 
+## Servidor S3 local de Files
+
+`make start-s3` inicia el propio Files como servidor S3 en `http://127.0.0.1:3062`, con un proceso y almacenamiento persistente, sin PostgreSQL, worker ni servicios de nube. Las credenciales independientes se generan en `.env.native-s3`; el `.env` existente se conserva. Configure el cliente con ese endpoint, región `us-east-1`, path-style y las claves `FILES_S3_ACCESS_KEY_ID` / `FILES_S3_SECRET_ACCESS_KEY`. `make stop-s3` conserva los datos. Alcance y límites: [Native local S3 server](README.md#native-local-s3-server).
+
 ## Almacenamiento compatible con S3
 
 S3 significa **Simple Storage Service**, no una versión 3 de la API. Amazon S3 es el servicio de AWS; Selectel y Yandex Object Storage ofrecen API compatibles. Yandex Disk utiliza otra API con OAuth. Files conserva `/api/v1/files`, la autorización, validación, PostgreSQL y la cola de eliminación.
@@ -33,13 +37,13 @@ Use un bucket privado dedicado sin versionado ni historial previo. La comprobaci
 Yandex Object Storage admite `YANDEX_IAM_TOKEN` en lugar de claves S3 (no combinar ambos modos). Para `yandex-object`, endpoint y región predeterminados: `https://storage.yandexcloud.net` y `ru-central1`. El token dura como máximo 12 horas: reemplácelo y recree API y worker antes de su vencimiento; no hay renovación automática. AWS conserva SigV4. `/api/v1/files` es la API de Timepost, no un servidor S3 intercambiable. [Alcance y verificación](../archive/docs/reports/2026-10-03-files-s3-compatibility.md). [Autenticación Yandex](https://yandex.cloud/ru/docs/storage/api-ref/authentication).
 
 ```sh
-make start-s3
-make smoke-s3
-make logs-s3
-make stop-s3
+make start-s3mock
+make smoke-s3mock
+make logs-s3mock
+make stop-s3mock
 ```
 
-Abra `http://127.0.0.1:3060` (o `FILES_PORT` de `.env`). Todos los proveedores utilizan un único proyecto Compose `timepost-files-standalone`, con una API, PostgreSQL y worker. `make start-s3` selecciona S3 local en el mismo `.env`, conservando las claves Files, la contraseña de la base de datos y el puerto; añade Adobe S3Mock y la inicialización del bucket al mismo proyecto. `make start`, `stop`, `ps`, `logs` y `smoke` detectan el proveedor configurado. Los comandos `*-s3` de inspección son alias compatibles. `start-s3` no sobrescribe configuraciones de nube existentes.
+Abra `http://127.0.0.1:3060` (o `FILES_PORT` de `.env`). Todos los proveedores utilizan un único proyecto Compose `timepost-files-standalone`, con una API, PostgreSQL y worker. `make start-s3mock` selecciona S3 local en el mismo `.env`, conservando las claves Files, la contraseña de la base de datos y el puerto; añade Adobe S3Mock y la inicialización del bucket al mismo proyecto. `make start`, `stop`, `ps`, `logs` y `smoke` detectan el proveedor configurado. Los comandos `*-s3mock` de inspección son alias compatibles. `start-s3mock` no sobrescribe configuraciones de nube existentes.
 
 Las credenciales S3 permanecen en el servidor. S3Mock no publica puertos y es un emulador de pruebas, no una prueba de IAM o firmas reales. La parada conserva los volúmenes. Para volver al simulador de archivos, configure `STORAGE_PROVIDER=simulator` en `.env` y ejecute `make start`. Los metadatos siguen en la misma base de datos; las listas muestran el proveedor seleccionado. Cambiar de proveedor no copia bytes ni cambia el proveedor de archivos existentes. Cambiar bucket/endpoint/prefix de S3 requiere una migración verificada.
 

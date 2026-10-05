@@ -12,8 +12,12 @@ const settings = {
   uploadsEnabled: true,
   retentionEnabled: false,
 };
-test('профили хранения принимают точные целые лимиты и наследование, но не включают несогласованное автоудаление', () => {
+test('профили хранения принимают точные целые лимиты и наследование, и включение/отключение автоудаления', () => {
   assert.deepEqual(parseStorageSettings(settings, true), settings);
+  assert.equal(
+    parseStorageSettings({ ...settings, retentionEnabled: true }).retentionEnabled,
+    true,
+  );
   assert.deepEqual(parseStorageSettings({ ...settings, maxFileBytes: null }), {
     ...settings,
     maxFileBytes: null,
@@ -24,7 +28,7 @@ test('профили хранения принимают точные целые
     { concurrentUploads: 0 },
     { concurrentUploads: 33 },
     { retentionDays: 0 },
-    { retentionEnabled: true },
+    { retentionEnabled: 'true' },
     { planId: 'unknown' },
     { maxFileBytes: 1.5 },
     { extra: true },

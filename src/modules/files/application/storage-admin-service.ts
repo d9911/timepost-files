@@ -23,9 +23,9 @@ export function parseStorageSettings(value: unknown, plan = false): StorageUserS
   if (
     !['start', 'pro', 'business'].includes(String(v.planId)) ||
     typeof v.uploadsEnabled !== 'boolean' ||
-    v.retentionEnabled !== false
+    typeof v.retentionEnabled !== 'boolean'
   )
-    throw new FileError('INVALID_FILE_ID', 'Автоудаление пока отключено; укажите профиль хранения');
+    throw new FileError('INVALID_FILE_ID', 'Укажите корректный профиль хранения и флаги настроек');
   for (const [key, max] of [
     ['maxFileBytes', 10000000000],
     ['quotaBytes', Number.MAX_SAFE_INTEGER],

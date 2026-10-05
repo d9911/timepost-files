@@ -2,7 +2,10 @@ import type { FileReferencesPort } from '../../application/ports/file-references
 import type { AuthMode } from '../../../access/contracts.js';
 import type { StorageProvider } from '../../domain/file.js';
 import type { StorageAdminService } from '../../application/storage-admin-service.js';
+import type { DirectUploadService } from '../../application/direct-upload-service.js';
 export interface FileHttpOptions {
+  directUploads?: DirectUploadService;
+  maxFileBytes?: (userId: string) => Promise<number>;
   storageAdminService?: StorageAdminService;
   authenticateStorageAdmin?: (header: string | undefined) => Promise<string>;
   storageProvider?: StorageProvider;

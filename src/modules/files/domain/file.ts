@@ -14,11 +14,21 @@ export interface FileRecord {
   provider?: StorageProvider;
   createdAt?: string | Date;
   status?: FileStatus;
+  bucket?: string | null;
+  objectKey?: string | null;
+  incomingKey?: string | null;
+  multipartUploadId?: string | null;
+  uploadExpiresAt?: string | Date | null;
+  socialNetwork?: string | null;
 }
 export interface DeleteJob {
   fileId: string;
   leaseId: string;
   attempts?: number;
+  objectKey?: string | null;
+  incomingKey?: string | null;
+  multipartUploadId?: string | null;
+  bucket?: string | null;
 }
 export interface DeleteStatus {
   fileId: string;

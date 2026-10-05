@@ -14,6 +14,14 @@ export async function inspectVideo(bytes: Uint8Array, mimeType: string) {
   const path = join(directory, 'input');
   try {
     await writeFile(path, bytes, { mode: 0o600 });
+    return await inspectVideoFile(path, mimeType);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+export async function inspectVideoFile(path: string, mimeType: string) {
+  try {
     // Только локальный файл: плейлисты и внешние сетевые ссылки не разрешены.
     const { stdout } = await execute(
       'ffprobe',
@@ -67,7 +75,5 @@ export async function inspectVideo(bytes: Uint8Array, mimeType: string) {
       'INVALID_VIDEO',
       'Нужно MP4 H.264/AAC или WebM VP8/VP9 до 4096×4096 и 60 минут',
     );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
   }
 }

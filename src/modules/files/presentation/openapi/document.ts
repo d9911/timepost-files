@@ -1,3 +1,4 @@
+import { directUploadPaths } from './direct-uploads.js';
 import { storageAdminPaths } from './storage-admin.js';
 import type { OpenAPIV3 } from 'openapi-types';
 const errorResponse: OpenAPIV3.ResponseObject = {
@@ -42,7 +43,7 @@ export const fileOperations = [
   { method: 'get', path: '/api/v1/files/{id}/thumbnail' },
   { method: 'post', path: '/api/v1/internal/file-references' },
   { method: 'get', path: '/health/ready' },
-  ...Object.entries(storageAdminPaths).flatMap(([path, operations]) =>
+  ...Object.entries({ ...storageAdminPaths, ...directUploadPaths }).flatMap(([path, operations]) =>
     Object.keys(operations ?? {}).map((method) => ({ method, path })),
   ),
 ];
@@ -53,12 +54,13 @@ export const fileOpenApi: OpenAPIV3.Document = {
     title: 'Timepost Files API',
     version: '0.3.0',
     description:
-      'Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.',
+      'Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3 endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок; автономное удаление доступно владельцу. Постоянных публичных ссылок нет; Yandex S3 поддерживает временные presigned PUT/GET и multipart. Swagger доступен только как локальный артефакт.',
   },
   servers: [{ url: 'http://localhost:3050' }],
   security: [{ bearerAuth: [] }],
   paths: {
     ...storageAdminPaths,
+    ...directUploadPaths,
     '/api/v1/files': {
       post: {
         operationId: 'uploadPhoto',
@@ -365,6 +367,10 @@ fileOpenApi.paths['/api/v1/storage'] = {
                     maxVideoBytes: { type: 'integer', enum: [104857600] },
                     genericFiles: { type: 'boolean' },
                     deleteEnabled: { type: 'boolean' },
+                    directUploads: { type: 'boolean' },
+                    maxFileBytes: { type: 'integer', maximum: 10000000000 },
+                    multipartThreshold: { type: 'integer', enum: [100000000] },
+                    partSize: { type: 'integer', enum: [16777216] },
                   },
                 },
               },
