@@ -214,6 +214,15 @@ export class PostgresFileRepository implements FileRepositoryPort, DeleteReposit
       client.release();
     }
   }
+  async referencedFile(projectId: string, referenceId: string, fileId: string) {
+    const grant = await this.pool.query(
+      'SELECT file_id FROM file_references WHERE project_id=$1 AND reference_id=$2 AND file_id=$3',
+      [projectId, referenceId, fileId],
+    );
+    if (!grant.rowCount) return undefined;
+    const file = await this.get(fileId);
+    return file?.projectId === projectId && file.status === 'ready' ? file : undefined;
+  }
   async replaceReferences(change: FileReferenceChange) {
     if (!(this.pool instanceof Pool)) throw new Error('Для ссылок требуется Pool');
     const client = await this.pool.connect();

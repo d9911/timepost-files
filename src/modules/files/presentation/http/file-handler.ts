@@ -71,6 +71,38 @@ export function createHandler(
         });
         return response.end(await readFile(new URL(uiAsset.name, options.staticDirectory)));
       }
+      if (request.method === 'POST' && url.pathname === '/api/v1/internal/publication-media') {
+        if (
+          !options.authenticateReferences ||
+          !options.referenceRepository?.referencedFile ||
+          !options.directUploads
+        )
+          throw new FileError('NOT_FOUND', 'Маршрут не найден');
+        await options.authenticateReferences(request.headers.authorization);
+        let body: unknown;
+        try {
+          body = JSON.parse((await readBytes(request, 2048)).toString());
+        } catch {
+          throw new FileError('INVALID_FILE_ID', 'Неверный запрос');
+        }
+        if (
+          !isRecord(body) ||
+          typeof body.projectId !== 'string' ||
+          !/^\d+$/.test(body.projectId) ||
+          typeof body.referenceId !== 'string' ||
+          !/^post:\d+$/.test(body.referenceId) ||
+          typeof body.fileId !== 'string' ||
+          !idPattern.test(body.fileId)
+        )
+          throw new FileError('INVALID_FILE_ID', 'Неверная привязка файла');
+        const file = await options.referenceRepository.referencedFile(
+          body.projectId,
+          body.referenceId,
+          body.fileId,
+        );
+        if (!file) throw new FileError('FILE_NOT_FOUND', 'Файл не привязан к публикации');
+        return json(200, { success: true, data: await options.directUploads.downloadUrl(file) });
+      }
       if (request.method === 'POST' && url.pathname === '/api/v1/internal/file-references') {
         if (!options.authenticateReferences || !options.referenceRepository)
           throw new FileError('NOT_FOUND', 'Маршрут не найден');

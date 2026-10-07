@@ -6,15 +6,10 @@ import pg from 'pg';
 import { PostgresFileRepository } from '../src/modules/files/infrastructure/persistence/postgres-file-repository.js';
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const client = await pool.connect();
-const repository = new PostgresFileRepository(
-  client,
-  new URL('../../migrations/', import.meta.url),
-);
+const repository = new PostgresFileRepository(pool, new URL('../../migrations/', import.meta.url));
 const id = randomUUID();
 const projectId = String(Date.now());
 try {
-  await client.query('BEGIN');
   await repository.insert({
     id,
     ownerId: '1',
@@ -36,10 +31,13 @@ try {
   assert.equal(items.length, 1);
   assert.equal(items[0]!.durationSeconds, 0.4);
   console.log(
-    'PASS: реальный SQL insert/get/list сохраняет длительность; транзакция откатывается.',
+    'PASS: реальный SQL insert/get/list сохраняет длительность; тестовая запись очищается.',
   );
 } finally {
-  await client.query('ROLLBACK');
-  client.release();
-  await pool.end();
+  try {
+    // insert владеет транзакцией; очищается только собственная UUID-запись без байтов.
+    await pool.query('DELETE FROM stored_files WHERE id=$1', [id]);
+  } finally {
+    await pool.end();
+  }
 }

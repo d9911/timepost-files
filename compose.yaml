@@ -29,11 +29,12 @@ services:
       POSTGRES_PASSWORD: ${FILES_DB_PASSWORD:?Запустите make setup}
     volumes: [metadata:/var/lib/postgresql/data]
     healthcheck:
-      test: [CMD-SHELL, pg_isready -U files -d files]
+      test: [CMD-SHELL, pg_isready -h 127.0.0.1 -U files -d files]
       interval: 3s
       timeout: 3s
       retries: 30
   api:
+    restart: on-failure:5
     build: .
     environment:
       <<: *files-environment
@@ -49,6 +50,7 @@ services:
       timeout: 5s
       retries: 30
   worker:
+    restart: on-failure:5
     build: .
     environment:
       <<: *files-environment

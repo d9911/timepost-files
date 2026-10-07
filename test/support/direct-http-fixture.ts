@@ -12,7 +12,8 @@ import { ValidatedMediaInspector } from '../../src/modules/files/infrastructure/
 import { CryptoFileIdentity } from '../../src/modules/files/infrastructure/identity/crypto-file-identity.js';
 import { createHandler } from '../../src/modules/files/presentation/http/file-handler.js';
 import { FileError } from '../../src/shared/application/file-error.js';
-export async function directHttpFixture(port = 0) {
+export async function directHttpFixture(port = 0, publicationMedia = false) {
+  const references = new Map<string, string[]>();
   const files = new Map<string, FileRecord>();
   const objects = new Map<
     string,
@@ -142,6 +143,30 @@ export async function directHttpFixture(port = 0) {
       directUploads: direct,
       maxFileBytes: async () => 150_000_000,
       staticDirectory: new URL('../../public/', import.meta.url),
+      ...(publicationMedia
+        ? {
+            authenticateReferences: async (header: string | undefined) => {
+              if (header !== 'Bearer fixture-posts') throw new FileError('UNAUTHORIZED', 'service');
+            },
+            referenceRepository: {
+              async replaceReferences(change: {
+                projectId: string;
+                referenceId: string;
+                fileIds: string[];
+              }) {
+                references.set(`${change.projectId}:${change.referenceId}`, change.fileIds);
+              },
+              async referencedFile(projectId: string, referenceId: string, fileId: string) {
+                const file = files.get(fileId);
+                return references.get(`${projectId}:${referenceId}`)?.includes(fileId) &&
+                  file?.projectId === projectId &&
+                  file.status === 'ready'
+                  ? file
+                  : undefined;
+              },
+            },
+          }
+        : {}),
     },
   );
   const server = createServer(async (req, res) => {
@@ -179,5 +204,5 @@ export async function directHttpFixture(port = 0) {
   server.listen(port, '127.0.0.1');
   await once(server, 'listening');
   origin = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
-  return { origin, files, objects, server };
+  return { origin, files, objects, server, references };
 }

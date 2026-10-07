@@ -1,3 +1,4 @@
+import type { FileRecord } from '../../domain/file.js';
 export interface FileReferenceChange {
   projectId: string;
   referenceId: string;
@@ -6,4 +7,9 @@ export interface FileReferenceChange {
 }
 export interface FileReferencesPort {
   replaceReferences(change: FileReferenceChange): Promise<void>;
+  referencedFile?(
+    projectId: string,
+    referenceId: string,
+    fileId: string,
+  ): Promise<FileRecord | undefined>;
 }

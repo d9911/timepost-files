@@ -42,6 +42,7 @@ export const fileOperations = [
   { method: 'get', path: '/api/v1/files/{id}/content' },
   { method: 'get', path: '/api/v1/files/{id}/thumbnail' },
   { method: 'post', path: '/api/v1/internal/file-references' },
+  { method: 'post', path: '/api/v1/internal/publication-media' },
   { method: 'get', path: '/health/ready' },
   ...Object.entries({ ...storageAdminPaths, ...directUploadPaths }).flatMap(([path, operations]) =>
     Object.keys(operations ?? {}).map((method) => ({ method, path })),
@@ -522,3 +523,53 @@ for (const path of Object.values(fileOpenApi.paths)) {
     }
   }
 }
+
+fileOpenApi.paths['/api/v1/internal/publication-media'] = {
+  post: {
+    operationId: 'getPublicationMediaUrl',
+    summary: 'Получить временный HTTPS URL файла для Instagram publisher',
+    description:
+      'Только posts-service с HS256 system JWT и files:references:write. Файл должен быть ready и связан с указанными проектом и post:N. URL действителен 900 секунд; в standalone и без direct S3 маршрут недоступен.',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['projectId', 'referenceId', 'fileId'],
+            properties: {
+              projectId: { type: 'string', pattern: '^[0-9]+$' },
+              referenceId: { type: 'string', pattern: '^post:[0-9]+$' },
+              fileId: { type: 'string', format: 'uuid' },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      ...errors,
+      200: {
+        description: 'Временный URL',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['success', 'data'],
+              properties: {
+                success: { type: 'boolean', enum: [true] },
+                data: {
+                  type: 'object',
+                  required: ['url', 'expiresIn'],
+                  properties: {
+                    url: { type: 'string', format: 'uri' },
+                    expiresIn: { type: 'integer', enum: [900] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};

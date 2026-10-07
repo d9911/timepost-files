@@ -124,11 +124,1127 @@ info:
     Приватные файлы проектов. Провайдеры: Яндекс Диск, Selectel S3, Amazon S3, Yandex Object Storage, совместимый S3
     endpoint и локальный симулятор; метаданные и очередь удаления — PostgreSQL. Авторизация: Timepost
     (Accounts/Projects) либо автономные bearer API keys. Удаление в Timepost требует учтённый файл без ссылок;
-    автономное удаление доступно владельцу. Публичных ссылок нет. Swagger доступен только как локальный артефакт.
+    автономное удаление доступно владельцу. Постоянных публичных ссылок нет; Yandex S3 поддерживает временные presigned
+    PUT/GET и multipart. Swagger доступен только как локальный артефакт.
   title: Timepost Files API
   version: 0.3.0
 openapi: 3.0.3
 paths:
+  /api/v1/admin/storage/plans:
+    get:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminPlans
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: Массив профилей хранения в data, включая версию и ограничения
+  /api/v1/admin/storage/plans/{planId}:
+    put:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminUpdatePlan
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            enum:
+              - start
+              - pro
+              - business
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                concurrentUploads:
+                  maximum: 32
+                  minimum: 1
+                  type: integer
+                maxFileBytes:
+                  maximum: 10000000000
+                  minimum: 1
+                  type: integer
+                planId:
+                  enum:
+                    - start
+                    - pro
+                    - business
+                  type: string
+                quotaBytes:
+                  maximum: 9007199254740991
+                  minimum: 0
+                  nullable: true
+                  type: integer
+                retentionDays:
+                  maximum: 3650
+                  minimum: 1
+                  type: integer
+                retentionEnabled:
+                  type: boolean
+                uploadsEnabled:
+                  type: boolean
+              required:
+                - planId
+                - maxFileBytes
+                - quotaBytes
+                - concurrentUploads
+                - retentionDays
+                - uploadsEnabled
+                - retentionEnabled
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: Обновить профиль хранения; максимальный размер, параллелизм и срок обязательны и не могут быть null
+  /api/v1/admin/storage/summary:
+    get:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminSummary
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: >-
+        Объём учтённых файлов провайдера: usedBytes, reservedBytes, fileCount, pendingCount, deletingCount;
+        physicalBucketBytes=null
+  /api/v1/admin/storage/users:
+    get:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminUsers
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+        - in: query
+          name: userId
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: До 50 пользователей с объёмом и числом фото/видео; items и nextCursor
+  /api/v1/admin/storage/users/{userId}:
+    get:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminUserSettings
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: Индивидуальные settings и действующая effective политика
+    put:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminUpdateUser
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                concurrentUploads:
+                  maximum: 32
+                  minimum: 1
+                  nullable: true
+                  type: integer
+                maxFileBytes:
+                  maximum: 10000000000
+                  minimum: 1
+                  nullable: true
+                  type: integer
+                planId:
+                  enum:
+                    - start
+                    - pro
+                    - business
+                  type: string
+                quotaBytes:
+                  maximum: 9007199254740991
+                  minimum: 0
+                  nullable: true
+                  type: integer
+                retentionDays:
+                  maximum: 3650
+                  minimum: 1
+                  nullable: true
+                  type: integer
+                retentionEnabled:
+                  type: boolean
+                uploadsEnabled:
+                  type: boolean
+              required:
+                - planId
+                - maxFileBytes
+                - quotaBytes
+                - concurrentUploads
+                - retentionDays
+                - uploadsEnabled
+                - retentionEnabled
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: Сохранить настройки пользователя; null наследует профиль
+  /api/v1/admin/storage/users/{userId}/cleanup:
+    post:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminCleanup
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                confirmUserId:
+                  description: Точное совпадение с userId в пути
+                  type: string
+                previewId:
+                  format: uuid
+                  type: string
+              required:
+                - previewId
+                - confirmUserId
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: Поставить файлы предпросмотра в очередь удаления; повтор безопасен, ссылки проверяются ещё раз
+  /api/v1/admin/storage/users/{userId}/cleanup-preview:
+    post:
+      description: >-
+        Только системный HS256 JWT admin-service с files:admin и числовым sub администратора. Срок токена не больше 60
+        секунд. Пользовательские токены сюда не принимаются. Обёртка ответа: success=true, data. Настройки хранения не
+        являются подтверждением оплаты тарифа.
+      operationId: storageAdminCleanupPreview
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            pattern: ^[1-9][0-9]*$
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    description: Результат соответствующей операции; plans возвращает массив профилей.
+                    oneOf:
+                      - type: object
+                      - items:
+                          type: object
+                        type: array
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Данные или подтверждённая операция
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Нет административного доступа, неверные данные или сервис недоступен
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      security:
+        - bearerAuth: []
+      summary: >-
+        Предпросмотр не более 1000 файлов без ссылок: previewId, count, bytes; действует 10 минут, привязан к
+        администратору
   /api/v1/files:
     get:
       description: >-
@@ -1477,6 +2593,55 @@ paths:
               schema:
                 type: string
       summary: Прочитать состояние очереди удаления
+  /api/v1/files/{id}/download:
+    get:
+      operationId: signMediaDownload
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      expiresIn:
+                        enum:
+                          - 900
+                        type: integer
+                      url:
+                        format: uri
+                        type: string
+                    required:
+                      - url
+                      - expiresIn
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Подписанная ссылка после проверки доступа к проекту
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Получить приватную ссылку GET на 15 минут
   /api/v1/files/{id}/thumbnail:
     get:
       description: >-
@@ -1897,6 +3062,1136 @@ paths:
               schema:
                 type: string
       summary: Заменить ссылки поста на файлы
+  /api/v1/internal/publication-media:
+    post:
+      description: >-
+        Только posts-service с HS256 system JWT и files:references:write. Файл должен быть ready и связан с указанными
+        проектом и post:N. URL действителен 900 секунд; в standalone и без direct S3 маршрут недоступен.
+      operationId: getPublicationMediaUrl
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                fileId:
+                  format: uuid
+                  type: string
+                projectId:
+                  pattern: ^[0-9]+$
+                  type: string
+                referenceId:
+                  pattern: ^post:[0-9]+$
+                  type: string
+              required:
+                - projectId
+                - referenceId
+                - fileId
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      expiresIn:
+                        enum:
+                          - 900
+                        type: integer
+                      url:
+                        format: uri
+                        type: string
+                    required:
+                      - url
+                      - expiresIn
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Временный URL
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Ошибка проверки доступа, входных данных или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Получить временный HTTPS URL файла для Instagram publisher
+  /api/v1/media/upload/cancel:
+    post:
+      description: >-
+        Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned
+        URL — временное разрешение, секретный ключ браузеру не передаётся.
+      operationId: cancelMediaUpload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                uploadId:
+                  format: uuid
+                  type: string
+              required:
+                - uploadId
+              type: object
+        required: true
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      status:
+                        enum:
+                          - deleting
+                        type: string
+                      uploadId:
+                        format: uuid
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Результат
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Поставить незавершённую загрузку в очередь удаления
+  /api/v1/media/upload/complete:
+    post:
+      description: >-
+        Повтор после успешного завершения возвращает тот же файл. Проверяются серверные размеры/ETag всех частей,
+        metadata и фактический формат (JPEG/PNG/WebP, MP4 H.264/AAC, WebM VP8/VP9). Проверка потока через локальный
+        временный файл ограничена 20 минутами, одновременно максимум две проверки на процесс. SHA-256 и постоянный
+        object_key сохраняются в БД; presigned URL в БД не сохраняется.
+      operationId: completeMediaUpload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                parts:
+                  items:
+                    properties:
+                      etag:
+                        maxLength: 200
+                        type: string
+                      partNumber:
+                        maximum: 10000
+                        minimum: 1
+                        type: integer
+                    required:
+                      - partNumber
+                      - etag
+                    type: object
+                  maxItems: 10000
+                  type: array
+                uploadId:
+                  format: uuid
+                  type: string
+              required:
+                - uploadId
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Результат
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Проверить объект и перенести incoming → media
+  /api/v1/media/upload/init:
+    post:
+      description: >-
+        Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned
+        URL — временное разрешение, секретный ключ браузеру не передаётся.
+      operationId: initMediaUpload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                fileName:
+                  maxLength: 255
+                  type: string
+                mimeType:
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/webp
+                    - video/mp4
+                    - video/webm
+                  type: string
+                projectId:
+                  pattern: ^[0-9]+$
+                  type: string
+                sizeBytes:
+                  maximum: 10000000000
+                  minimum: 1
+                  type: integer
+                socialNetwork:
+                  enum:
+                    - instagram
+                  type: string
+              required:
+                - projectId
+                - fileName
+                - mimeType
+                - sizeBytes
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      expiresAt:
+                        format: date-time
+                        type: string
+                      headers:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      mode:
+                        enum:
+                          - put
+                          - multipart
+                        type: string
+                      partCount:
+                        type: integer
+                      partSize:
+                        type: integer
+                      uploadId:
+                        format: uuid
+                        type: string
+                      uploadUrl:
+                        format: uri
+                        type: string
+                    required:
+                      - uploadId
+                      - mode
+                      - expiresAt
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Результат
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Зарезервировать квоту и получить presigned PUT или multipart-сессию
+  /api/v1/media/upload/part:
+    post:
+      description: >-
+        Требуется доступ на запись в проект. Только Yandex Object Storage со статическими серверными ключами. Presigned
+        URL — временное разрешение, секретный ключ браузеру не передаётся.
+      operationId: signMediaPart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                partNumber:
+                  maximum: 10000
+                  minimum: 1
+                  type: integer
+                uploadId:
+                  format: uuid
+                  type: string
+              required:
+                - uploadId
+                - partNumber
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      headers:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      url:
+                        format: uri
+                        type: string
+                    required:
+                      - url
+                      - headers
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Результат
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileError'
+          description: Отказ доступа, лимита, формата или зависимости
+          headers:
+            Server-Timing:
+              description: Время обработки API до отправки ответа
+              schema:
+                example: app;dur=12.30
+                type: string
+            X-Request-Id:
+              description: Проверенный идентификатор корреляции
+              schema:
+                type: string
+      summary: Получить presigned PUT части (16 MiB; последняя короче)
   /api/v1/storage:
     get:
       description: >-
@@ -1918,15 +4213,28 @@ paths:
                         type: string
                       deleteEnabled:
                         type: boolean
+                      directUploads:
+                        type: boolean
                       genericFiles:
                         type: boolean
                       maxBytes:
                         enum:
                           - 10485760
                         type: integer
+                      maxFileBytes:
+                        maximum: 10000000000
+                        type: integer
                       maxVideoBytes:
                         enum:
                           - 104857600
+                        type: integer
+                      multipartThreshold:
+                        enum:
+                          - 100000000
+                        type: integer
+                      partSize:
+                        enum:
+                          - 16777216
                         type: integer
                       provider:
                         enum:
