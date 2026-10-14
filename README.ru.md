@@ -97,7 +97,7 @@ Angular не используется. Интерфейс управления �
 Повторный запуск сохраняет настройки и тома. Из корня Timepost:
 `make files-standalone`; резервный вход: `make -f scripts/main/Makefile files-standalone`.
 
-Для запуска вместе с Timepost из корня workspace: `make dev-file` (локальные frontend разработки) или `make start-file` (Docker-сборка и запуск). Сначала собирается и запускается автономный Files, затем обычный режим Timepost. После готовности открываются Timepost, Admin и Files; `OPEN_BROWSER=false` отключает открытие. Команды доступны и через `make -f scripts/main/Makefile`. У автономного Files отдельные данные и ключи; он пересобирается при повторном запуске команды, без hot reload. Для другого порта: `FILES_PORT=4060 FILES_UI_URL=http://127.0.0.1:4060`. Остановка автономных контейнеров из workspace: `make -C files stop`.
+Для общего запуска Timepost: `make dev-file` (разработка) или `make start-file` (Docker). Все сервисы, включая Files API, его UI, PostgreSQL и worker, работают в общем Compose-проекте `timepost-local`. После готовности открываются Timepost, Admin и страница Files `http://127.0.0.1:3050`. Files использует авторизацию Timepost и общую интеграцию с Posts, Accounts и Projects; в поле доступа UI нужен пользовательский Bearer-токен Timepost и ID доступного проекта. `OPEN_BROWSER=false` отключает открытие; `FILES_UI_URL` меняет адрес страницы. Отдельный экземпляр на 3060 запускается только явно через `make files-standalone` или `make -C files start` и имеет собственные данные и ключи.
 Для отдельного использования достаточно каталога `files/`, Docker Compose и Node.js 24
 для подготовки окружения; соседние проекты не требуются.
 
